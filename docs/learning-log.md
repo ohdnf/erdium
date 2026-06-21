@@ -176,31 +176,58 @@
 
 ### Completed Work
 
--
+- `pgsql-ast-parser@12.0.2`를 Phase 1 PostgreSQL parser runtime dependency로 추가
+- `parsePostgresSql` adapter를 추가해 `basic.sql`을 `DatabaseSchema`로 normalize
+- `CREATE TABLE`의 table, column, primary key, unique, nullability, type, default expression 처리 구현
+- parser syntax error, duplicate table/column, unsupported foreign-key feature에 대한 diagnostic 경로 추가
+- `basic.sql` fixture와 error path에 대한 adapter-level Vitest test 추가
 
 ### Concepts To Review
 
--
+- parser adapter가 vendor AST를 application-owned domain model로 변환하는 역할
+- source offset을 1-based line/column `SourceRange`로 변환하는 방식
+- source slicing과 AST-to-SQL fallback으로 displayable type/default text를 만드는 방식
+- inline constraint와 table-level constraint를 같은 `KeyConstraint` model로 합치는 방식
+- fixture test에서 전체 AST snapshot 대신 semantic assertion을 작성하는 방식
+- unsupported feature를 silently ignore하지 않고 diagnostic으로 막는 이유
 
 ### Code To Revisit
 
--
+- `src/adapters/parser/postgres/parse-postgres-sql.ts`: parser adapter boundary와 normalization flow 확인
+- `src/adapters/parser/postgres/parse-postgres-sql.test.ts`: `basic.sql` contract를 어떤 assertions로 검증하는지 확인
+- `src/domain/schema/identifiers.ts`: table/column/constraint ID 생성이 adapter에서 어떻게 재사용되는지 확인
+- `docs/parser-coverage.md`: Milestone 4에서 의도적으로 남긴 FK/ALTER TABLE 범위 확인
 
 ### Portfolio Notes
 
--
+- production code가 parser library AST에 직접 결합되지 않도록 adapter boundary 구성
+- SQL을 실행하지 않고 browser-local parser dependency만 추가
+- domain model을 먼저 정의한 뒤 parser 결과를 그 model로 맞추는 순서 유지
+- fixture-driven development로 `basic.sql` 요구사항을 검증 가능한 테스트로 전환
+- future milestone 범위인 foreign key를 조용히 무시하지 않고 diagnostic으로 차단
 
 ### Interview Notes
 
--
+- “parser adapter는 왜 별도 계층으로 분리했나요?”
+- “왜 vendor AST를 domain model로 그대로 사용하지 않았나요?”
+- “source location은 어떻게 line/column diagnostic으로 바꾸나요?”
+- “type/default expression을 표시용 문자열로 보존할 때 어떤 tradeoff가 있었나요?”
+- “왜 foreign key를 아직 구현하지 않았는데 diagnostic으로 막았나요?”
+- “fixture 기반 테스트가 parser 작업에서 왜 중요한가요?”
 
 ### Open Questions
 
--
+- `pgsql-ast-parser`의 source location이 모든 future DDL feature에서 충분히 정확한가?
+- type/default text를 source slice로 보존할 때 comments, unusual whitespace, quoted types를 어떻게 다룰 것인가?
+- Milestone 5에서 inline/table-level/ALTER TABLE foreign key unresolved declarations를 어떤 내부 구조로 수집할 것인가?
+- unsupported feature diagnostic을 warning으로 낮출 수 있는 기준은 무엇인가?
 
 ### Next Milestone Preparation
 
--
+- inline `REFERENCES`와 table-level `FOREIGN KEY` AST shape를 unresolved FK declaration으로 수집하는 구조 설계
+- `ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY`를 table collection 이후 적용하는 pass 추가 준비
+- referential action 문자열을 `ReferentialAction` closed union으로 normalize하는 helper 설계
+- unknown table/column, FK column-count mismatch diagnostics fixture 추가 준비
 
 ## Milestone 5: Foreign-Key Normalization
 
