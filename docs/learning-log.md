@@ -111,31 +111,66 @@
 
 ### Completed Work
 
--
+- PostgreSQL parser 후보를 production 코드와 분리된 spike workspace에서 비교
+- `pgsql-ast-parser@12.0.2`와 `pgsql-parser@17.9.15`를 세 fixture와 quoted identifier probe로 실험
+- parser 후보별 AST shape, source location, foreign key, referential action, type/default 표현 방식 확인
+- Phase 1 Milestone 4 parser adapter 후보로 `pgsql-ast-parser` 추천
+- `docs/parser-spike.md`에 후보 제외 사유, fixture 결과, recommendation, risks 기록
 
 ### Concepts To Review
 
--
+- spike의 목적: production 구현 전에 기술 선택 위험을 줄이는 짧은 실험
+- parser library AST와 application-owned domain model을 분리해야 하는 이유
+- PostgreSQL DDL에서 inline constraint와 table-level constraint가 AST에서 다르게 표현되는 방식
+- `ALTER TABLE ... ADD CONSTRAINT`가 table declaration 이후 별도 resolution pass가 필요한 이유
+- byte offset source location을 1-based line/column diagnostic으로 변환하는 방식
+- WASM 기반 parser와 plain JavaScript parser의 browser integration tradeoff
+- 기술 선택 근거를 scorecard와 decision flow로 설명하는 방식
+- PostgreSQL 전용 선택과 future multi-dialect 확장 계획을 분리해서 문서화하는 방식
 
 ### Code To Revisit
 
--
+- `spikes/parser-library/inspect.mjs`: 후보 parser를 동일 입력으로 비교하는 격리 실험 구조 확인
+- `spikes/parser-library/package.json`: 루트 앱 의존성과 spike 의존성을 분리한 방식 확인
+- `docs/parser-spike.md`: 후보별 AST 관찰과 recommendation이 어떤 근거로 작성됐는지 확인
+- `fixtures/postgres/*.sql`: parser adapter가 만족해야 할 executable specification으로 다시 읽기
 
 ### Portfolio Notes
 
--
+- 의존성을 바로 추가하지 않고 후보 parser를 fixture 기준으로 검증한 의사결정 과정
+- 브라우저 local-first 요구사항을 기술 선택 기준에 포함
+- parser 정확도뿐 아니라 adapter 복잡도, source location, bundle/init cost, license를 함께 평가
+- production 코드에 vendor AST type을 유입시키지 않는 architecture boundary 유지
+- 추천 후보와 fallback 후보를 명확히 남겨 향후 parser 교체 가능성을 보존
+- Phase 1 parser 선택이 future DBMS parser 선택을 고정하지 않도록 dialect adapter 전략을 문서화
 
 ### Interview Notes
 
--
+- “왜 parser library를 바로 선택하지 않고 spike를 진행했나요?”
+- “`pgsql-ast-parser`를 추천한 핵심 근거는 무엇인가요?”
+- “`pgsql-parser`처럼 PostgreSQL 실제 parser에 가까운 후보를 선택하지 않은 이유는 무엇인가요?”
+- “source location이 diagnostics에 왜 중요한가요?”
+- “vendor AST type이 domain model로 새어 나오면 어떤 문제가 생기나요?”
+- “기술 선택 spike의 결과를 포트폴리오에서 어떻게 설명할 수 있나요?”
+- “PostgreSQL 이후 MySQL이나 SQLite를 지원하려면 현재 구조에서 무엇을 추가해야 하나요?”
+- “왜 지금 `SqlDialect`를 여러 DBMS union으로 넓히지 않았나요?”
 
 ### Open Questions
 
--
+- parse error에서 `pgsql-ast-parser`가 제공하는 error position을 `SourceRange`로 얼마나 정확히 매핑할 수 있는가?
+- `pgsql-ast-parser`가 향후 array type, custom type, identity column fixture를 어디까지 처리할 수 있는가?
+- type/default display text는 AST 재구성보다 source slicing을 우선할 것인가?
+- unsupported statement를 parser error와 normalization diagnostic 중 어느 단계에서 구분할 것인가?
+- MySQL, SQLite 등 future dialect마다 identifier normalization, default expression, type display text 차이를 어디까지 `DatabaseSchema`에 반영해야 하는가?
+- future dialect 추가 시 공통 parse contract만 재사용하고 coverage 문서는 dialect별로 분리하는 것이 충분한가?
 
 ### Next Milestone Preparation
 
--
+- `pgsql-ast-parser`를 production dependency로 추가할 때 runtime dependency로 분류할 이유 정리
+- `src/adapters/parser/postgres` 경계와 public parse function 이름 결정
+- `basic.sql` fixture를 `DatabaseSchema`로 normalize하는 최소 adapter flow 설계
+- offset 기반 source location을 line/column으로 변환하는 helper 설계
+- parser AST type이 adapter 밖으로 export되지 않도록 test 또는 import boundary 점검
 
 ## Milestone 4: Basic Parser Adapter
 
