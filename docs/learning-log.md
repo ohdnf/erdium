@@ -54,31 +54,58 @@
 
 ### Completed Work
 
--
+- `DatabaseSchema`를 중심으로 table, column, key constraint, foreign key domain type 정의
+- parser/UI/vendor에 의존하지 않는 schema domain public export 추가
+- PostgreSQL identifier normalization 및 stable ID 생성 helper 추가
+- parser/normalization diagnostic type과 parse result contract 정의
+- identifier, model, diagnostic behavior에 대한 Vitest unit test 추가
 
 ### Concepts To Review
 
--
+- TypeScript `interface`와 `type`을 구분해서 사용하는 기준
+- `as const`로 literal union type을 만드는 방식
+- `import type`이 runtime import를 만들지 않는 이유
+- PostgreSQL unquoted/quoted identifier normalization 규칙
+- stable ID가 array index나 단순 문자열 결합보다 중요한 이유
+- unit test에서 snapshot보다 named assertion을 우선하는 이유
 
 ### Code To Revisit
 
--
+- `src/domain/schema/model.ts`: canonical schema model의 필드와 composite key 순서 보존 확인
+- `src/domain/schema/identifiers.ts`: quoted identifier 처리와 length-prefixed stable ID 생성 방식 확인
+- `src/domain/schema/diagnostics.ts`: success/failure parse result가 discriminated union으로 표현되는 방식 확인
+- `src/domain/schema/*.test.ts`: domain contract를 어떤 behavior 단위로 검증했는지 확인
 
 ### Portfolio Notes
 
--
+- parser library를 선택하기 전에 application-owned domain model을 먼저 정의
+- PostgreSQL AST, React, Next.js, React Flow, ELK에 의존하지 않는 순수 TypeScript domain layer 구성
+- identifier collision을 피하기 위해 dot concatenation 대신 length-prefixed stable ID 전략 사용
+- composite primary key, unique key, foreign key를 ordered column ID 배열로 표현할 수 있게 설계
+- diagnostics와 parse result contract를 먼저 정의해 이후 parser adapter와 UI error flow의 기준 마련
 
 ### Interview Notes
 
--
+- “왜 parser library AST를 그대로 쓰지 않고 별도 domain model을 정의했나요?”
+- “stable identifier는 왜 필요한가요?”
+- “PostgreSQL identifier normalization에서 quoted와 unquoted는 어떻게 다르게 처리하나요?”
+- “composite key를 왜 하나의 relation/constraint로 유지해야 하나요?”
+- “TypeScript discriminated union을 parse result에 사용한 이유는 무엇인가요?”
+- “이 domain layer가 framework-independent하다는 것을 어떻게 보장했나요?”
 
 ### Open Questions
 
--
+- parser adapter에서 parser AST의 source location을 `SourceRange`로 어떻게 매핑할 것인가?
+- anonymous constraint ID를 parser statement 순서 없이 완전히 deterministic하게 만들려면 어떤 descriptor가 필요한가?
+- quoted identifier fixture는 parser spike 단계에서 어느 후보가 가장 정확하게 제공하는가?
+- type text와 default expression을 어느 수준까지 lossless하게 보존할 수 있는가?
 
 ### Next Milestone Preparation
 
--
+- PostgreSQL parser 후보의 browser compatibility, license, bundle size 확인
+- `CREATE TABLE`과 `ALTER TABLE ... ADD CONSTRAINT` AST shape 비교 방법 정리
+- fixture 단위로 parser 후보를 평가하는 spike 문서 형식 준비
+- source range, quoted identifier, schema-qualified identifier 지원 여부를 parser 후보 평가 기준에 포함
 
 ## Milestone 3: Parser Library Spike
 
