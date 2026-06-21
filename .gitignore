@@ -39,6 +39,8 @@ Temporary Items
 
 # testing
 /coverage
+/test-results
+/playwright-report
 
 # next.js
 /.next/
@@ -64,7 +66,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 ### Node ###
 # Logs

@@ -477,7 +477,7 @@ In scope:
 - Next.js App Router with TypeScript strict mode
 - pnpm
 - lint, typecheck, Vitest, Playwright, build, and dev scripts
-- a minimal accessible page identifying the project as SQL-to-ERD
+- a minimal accessible page identifying the project as Erdium
 
 Out of scope:
 - SQL parser dependencies
