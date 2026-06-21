@@ -1,4 +1,4 @@
-# Architecture: SQL-to-ERD
+# Architecture: Erdium
 
 - Status: Draft
 - Version: 0.1

@@ -1,14 +1,14 @@
-# Product Requirements Document: SQL-to-ERD
+# Product Requirements Document: Erdium
 
 - Status: Draft
 - Version: 0.1
 - Product phase: Phase 1 MVP
-- Working title: SQL-to-ERD
+- Product name: Erdium
 - Primary platform: Desktop web browser
 
 ## 1. Product summary
 
-SQL-to-ERD is a browser-based developer tool that converts PostgreSQL DDL into an interactive entity-relationship diagram.
+Erdium is a browser-based developer tool that converts PostgreSQL DDL into an interactive entity-relationship diagram.
 
 A user pastes or writes SQL, explicitly requests parsing, and receives a diagram containing tables, columns, primary keys, unique constraints, and foreign-key relationships. The user can rearrange the diagram and export the result without creating an account.
 
@@ -385,7 +385,7 @@ Authentication is not a prerequisite for trying the editor. It becomes relevant 
 
 These decisions are intentionally postponed:
 
-- Public product name and branding
+- Visual identity and branding details beyond the Erdium name
 - Exact PostgreSQL parser package after the parser spike
 - Rich SQL editor package after the first vertical slice
 - Authentication provider

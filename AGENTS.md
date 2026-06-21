@@ -2,7 +2,7 @@
 
 ## Project summary
 
-This repository contains a browser-first SQL-to-ERD editor. The Phase 1 MVP accepts PostgreSQL DDL, converts it into a canonical schema model, and renders an interactive ERD.
+This repository contains Erdium, a browser-first SQL-to-ERD editor. The Phase 1 MVP accepts PostgreSQL DDL, converts it into a canonical schema model, and renders an interactive ERD.
 
 The MVP is intentionally local-first:
 
