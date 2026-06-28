@@ -463,6 +463,25 @@ describe("parsePostgresSql", () => {
     );
   });
 
+  it("reports duplicate foreign-key constraint identities", () => {
+    expectDiagnosticCode(
+      `
+        CREATE TABLE parents (id BIGSERIAL PRIMARY KEY);
+        CREATE TABLE children (
+          id BIGSERIAL PRIMARY KEY,
+          parent_id BIGINT NOT NULL,
+          CONSTRAINT fk_children_parent
+            FOREIGN KEY (parent_id)
+            REFERENCES parents (id),
+          CONSTRAINT fk_children_parent
+            FOREIGN KEY (parent_id)
+            REFERENCES parents (id)
+        );
+      `,
+      "DUPLICATE_CONSTRAINT"
+    );
+  });
+
   it("reports unsupported non-foreign-key ALTER TABLE changes", () => {
     expectDiagnosticCode(
       `
