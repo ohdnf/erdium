@@ -11,6 +11,7 @@ import {
   editorReducer,
   isDiagramStale
 } from "./editor-state";
+import { createEmptyDiagramLayout } from "../../diagram/layout/model";
 
 const accountsTableId = createTableId({ table: "accounts" });
 const accountsIdColumnId = createColumnId(accountsTableId, "id");
@@ -158,7 +159,8 @@ describe("editorReducer", () => {
       type: "parseSucceeded",
       sourceSql: "CREATE TABLE accounts (id BIGSERIAL PRIMARY KEY);",
       schema,
-      diagnostics: []
+      diagnostics: [],
+      layout: createEmptyDiagramLayout()
     });
 
     expect(parsedState.parseStatus).toBe("valid");

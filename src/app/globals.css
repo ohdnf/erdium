@@ -183,6 +183,20 @@ textarea {
   background: #fff1f0;
 }
 
+.project-status {
+  border-top: 1px solid var(--border);
+  padding: 0.625rem 1rem;
+  color: var(--muted);
+  background: #ffffff;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.project-status--error {
+  color: #7f1d1d;
+  background: #fff8f6;
+}
+
 .diagnostics {
   max-height: 11rem;
   border-top: 1px solid #f0c7c3;

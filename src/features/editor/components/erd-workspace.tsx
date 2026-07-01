@@ -1,10 +1,25 @@
 "use client";
 
-import { useMemo, useReducer } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import type { Diagnostic } from "../../../domain/schema";
+import { layoutDiagramGraphWithElk } from "../../../adapters/layout/elk/elk-layout-engine";
+import {
+  loadLocalProject,
+  removeLocalProject,
+  saveLocalProject
+} from "../../../adapters/persistence/local-storage/local-project-repository";
+import { createProjectDocument } from "../../project/serialization/project-document";
 import { parsePostgresSql } from "../../../adapters/parser/postgres";
 import { SchemaDiagram } from "../../diagram/components/schema-diagram";
 import { schemaToDiagramGraph } from "../../diagram/graph/schema-to-diagram-graph";
+import {
+  hasMissingPositions,
+  pruneLayoutToGraph
+} from "../../diagram/layout/merge-layout";
+import type {
+  DiagramPosition,
+  DiagramViewport
+} from "../../diagram/layout/model";
 import { samplePostgresSql } from "../sample-sql";
 import {
   createEditorStateFromParseResult,
@@ -13,12 +28,38 @@ import {
   type EditorState
 } from "../state/editor-state";
 
+type LayoutStatus =
+  | {
+      kind: "idle";
+    }
+  | {
+      kind: "running";
+    }
+  | {
+      kind: "error";
+      message: string;
+    };
+
+type PersistenceStatus =
+  | "idle"
+  | "loading"
+  | "saving"
+  | "saved"
+  | "error";
+
 export function ErdWorkspace() {
   const [state, dispatch] = useReducer(
     editorReducer,
     samplePostgresSql,
     createInitialEditorState
   );
+  const [layoutStatus, setLayoutStatus] = useState<LayoutStatus>({
+    kind: "idle"
+  });
+  const [persistenceStatus, setPersistenceStatus] =
+    useState<PersistenceStatus>("loading");
+  const [storageReady, setStorageReady] = useState(false);
+  const [storageMessage, setStorageMessage] = useState<string | null>(null);
   const graph = useMemo(
     () =>
       state.lastValidSchema
@@ -27,6 +68,122 @@ export function ErdWorkspace() {
     [state.lastValidSchema]
   );
   const stale = isDiagramStale(state);
+  const needsAutoLayout = graph ? hasMissingPositions(graph, state.layout) : false;
+
+  useEffect(() => {
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      const loadResult = loadLocalProject();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (!loadResult.ok) {
+        setStorageMessage(loadResult.message);
+        setPersistenceStatus("error");
+        setStorageReady(true);
+        return;
+      }
+
+      if (loadResult.document) {
+        const parseResult = parsePostgresSql({
+          dialect: "postgresql",
+          sql: loadResult.document.sourceSql
+        });
+
+        dispatch({
+          type: "projectRestored",
+          state: createEditorStateFromParseResult(
+            loadResult.document.sourceSql,
+            parseResult,
+            loadResult.document.layout
+          )
+        });
+      }
+
+      setPersistenceStatus("idle");
+      setStorageReady(true);
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady || !graph || !needsAutoLayout) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function runInitialLayout() {
+      if (!graph) {
+        return;
+      }
+
+      setLayoutStatus({ kind: "running" });
+      const layoutResult = await layoutDiagramGraphWithElk(graph);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (!layoutResult.ok) {
+        setLayoutStatus({
+          kind: "error",
+          message: layoutResult.message
+        });
+        return;
+      }
+
+      dispatch({
+        type: "autoLayoutApplied",
+        graph,
+        positions: layoutResult.positions,
+        mode: "preserve-existing"
+      });
+      setLayoutStatus({ kind: "idle" });
+    }
+
+    void runInitialLayout();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [graph, needsAutoLayout, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setPersistenceStatus("saving");
+      const saveResult = saveLocalProject(
+        createProjectDocument({
+          sourceSql: state.sourceSql,
+          layout: state.layout,
+          schemaSnapshot: state.lastValidSchema
+        })
+      );
+
+      if (saveResult.ok) {
+        setStorageMessage(null);
+        setPersistenceStatus("saved");
+        return;
+      }
+
+      setStorageMessage(saveResult.message);
+      setPersistenceStatus("error");
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [state.sourceSql, state.layout, state.lastValidSchema, storageReady]);
 
   function parseCurrentSql() {
     const result = parsePostgresSql({
@@ -35,11 +192,14 @@ export function ErdWorkspace() {
     });
 
     if (result.ok) {
+      const nextGraph = schemaToDiagramGraph(result.schema);
+
       dispatch({
         type: "parseSucceeded",
         sourceSql: state.sourceSql,
         schema: result.schema,
-        diagnostics: result.diagnostics
+        diagnostics: result.diagnostics,
+        layout: pruneLayoutToGraph(state.layout, nextGraph)
       });
       return;
     }
@@ -48,6 +208,72 @@ export function ErdWorkspace() {
       type: "parseFailed",
       diagnostics: result.diagnostics
     });
+  }
+
+  async function relayoutAllTables() {
+    if (!graph) {
+      return;
+    }
+
+    setLayoutStatus({ kind: "running" });
+    const layoutResult = await layoutDiagramGraphWithElk(graph);
+
+    if (!layoutResult.ok) {
+      setLayoutStatus({
+        kind: "error",
+        message: layoutResult.message
+      });
+      return;
+    }
+
+    dispatch({
+      type: "autoLayoutApplied",
+      graph,
+      positions: layoutResult.positions,
+      mode: "replace-all"
+    });
+    setLayoutStatus({ kind: "idle" });
+  }
+
+  function updateNodePosition(nodeId: string, position: DiagramPosition) {
+    dispatch({
+      type: "nodePositionChanged",
+      nodeId,
+      position
+    });
+  }
+
+  function updateDiagramViewport(viewport: DiagramViewport) {
+    dispatch({
+      type: "viewportChanged",
+      viewport
+    });
+  }
+
+  function resetLocalProject() {
+    if (!window.confirm("Reset local SQL and diagram layout?")) {
+      return;
+    }
+
+    const removeResult = removeLocalProject();
+    const parseResult = parsePostgresSql({
+      dialect: "postgresql",
+      sql: samplePostgresSql
+    });
+
+    dispatch({
+      type: "projectRestored",
+      state: createEditorStateFromParseResult(samplePostgresSql, parseResult)
+    });
+
+    if (removeResult.ok) {
+      setStorageMessage(null);
+      setPersistenceStatus("idle");
+      return;
+    }
+
+    setStorageMessage(removeResult.message);
+    setPersistenceStatus("error");
   }
 
   function loadSampleSql() {
@@ -88,6 +314,16 @@ export function ErdWorkspace() {
           <button type="button" onClick={loadSampleSql}>
             Load sample
           </button>
+          <button
+            type="button"
+            onClick={relayoutAllTables}
+            disabled={!graph || layoutStatus.kind === "running"}
+          >
+            Re-layout
+          </button>
+          <button type="button" onClick={resetLocalProject}>
+            Reset local
+          </button>
           <button type="button" disabled>
             Import
           </button>
@@ -118,6 +354,11 @@ export function ErdWorkspace() {
             }
           />
           <WorkspaceStatus state={state} stale={stale} />
+          <ProjectStatus
+            layoutStatus={layoutStatus}
+            persistenceStatus={persistenceStatus}
+            storageMessage={storageMessage}
+          />
           {state.diagnostics.length > 0 ? (
             <ParseDiagnostics diagnostics={state.diagnostics} />
           ) : null}
@@ -136,7 +377,12 @@ export function ErdWorkspace() {
             aria-label="Erdium diagram canvas"
           >
             {graph ? (
-              <SchemaDiagram graph={graph} />
+              <SchemaDiagram
+                graph={graph}
+                layout={state.layout}
+                onNodePositionChange={updateNodePosition}
+                onViewportChange={updateDiagramViewport}
+              />
             ) : (
               <div className="diagram-empty" role="status">
                 No valid diagram yet.
@@ -146,6 +392,34 @@ export function ErdWorkspace() {
         </section>
       </div>
     </main>
+  );
+}
+
+function ProjectStatus({
+  layoutStatus,
+  persistenceStatus,
+  storageMessage
+}: {
+  layoutStatus: LayoutStatus;
+  persistenceStatus: PersistenceStatus;
+  storageMessage: string | null;
+}) {
+  const errorMessage =
+    storageMessage ??
+    (layoutStatus.kind === "error" ? layoutStatus.message : null);
+
+  if (errorMessage) {
+    return (
+      <div className="project-status project-status--error" role="alert">
+        {errorMessage}
+      </div>
+    );
+  }
+
+  return (
+    <div className="project-status" role="status">
+      {projectStatusText(layoutStatus, persistenceStatus)}
+    </div>
   );
 }
 
@@ -221,6 +495,29 @@ function statusText(state: EditorState, stale: boolean): string {
   }
 
   return "Ready to parse.";
+}
+
+function projectStatusText(
+  layoutStatus: LayoutStatus,
+  persistenceStatus: PersistenceStatus
+): string {
+  if (layoutStatus.kind === "running") {
+    return "Applying automatic layout.";
+  }
+
+  if (persistenceStatus === "loading") {
+    return "Loading local project.";
+  }
+
+  if (persistenceStatus === "saving") {
+    return "Saving local project.";
+  }
+
+  if (persistenceStatus === "saved") {
+    return "Local project saved.";
+  }
+
+  return "Local project ready.";
 }
 
 function diagramSummary(state: EditorState): string {

@@ -409,31 +409,66 @@
 
 ### Completed Work
 
--
+- `elkjs`를 runtime dependency로 추가하고 ELK browser bundle entry를 layout adapter 안에 격리
+- vendor-neutral `DiagramLayout` model과 position/viewport merge helper 추가
+- initial parse와 re-parse 후 missing table positions에 자동 ELK layout 적용
+- 기존 table ID의 manual positions를 보존하고 새 table만 auto layout position으로 채우는 merge policy 구현
+- user-invoked `Re-layout` action으로 전체 table positions를 ELK 결과로 교체
+- React Flow node drag position과 viewport를 workspace state로 끌어올려 persistence 가능하게 변경
+- versioned `ProjectDocumentV1` 생성/검증과 localStorage repository adapter 추가
+- SQL source, diagram positions, viewport를 debounce 저장하고 refresh 후 복원
+- corrupt/unsupported stored project를 crash 없이 fallback 처리하고 `Reset local` action 추가
+- layout merge/project document unit test와 refresh restoration Playwright coverage 추가
 
 ### Concepts To Review
 
--
+- ELK graph input: `children`, `edges`, `layoutOptions`를 adapter 내부에서 vendor shape로 변환하는 방식
+- position merge policy: existing stable table IDs는 보존하고 new/deleted table IDs만 조정하는 방식
+- controlled React Flow viewport: viewport를 state로 보존하면서 localStorage write는 debounce하는 방식
+- versioned local document: `sourceSql`을 authoritative data로 두고 layout을 stable ID keyed data로 저장하는 이유
+- runtime validation: localStorage JSON을 untrusted input으로 보고 format/version/number fields를 검증하는 이유
+- browser bundle boundary: `elkjs` 기본 entry 대신 `elkjs/lib/elk.bundled`를 사용해 Next browser build 문제를 피하는 방식
 
 ### Code To Revisit
 
--
+- `src/adapters/layout/elk/elk-layout-engine.ts`: ELK-specific graph conversion과 error fallback 확인
+- `src/features/diagram/layout/model.ts`: persisted layout shape 확인
+- `src/features/diagram/layout/merge-layout.ts`: preserve-existing/re-layout merge behavior 확인
+- `src/features/project/serialization/project-document.ts`: project document validation과 version guard 확인
+- `src/adapters/persistence/local-storage/local-project-repository.ts`: browser storage key와 load/save/remove boundary 확인
+- `src/features/editor/components/erd-workspace.tsx`: layout effect, debounced persistence, restore/reset flow 확인
+- `tests/e2e/home.spec.ts`: refresh 후 SQL과 moved node position 복원 flow 확인
 
 ### Portfolio Notes
 
--
+- parser/schema/graph/layout/persistence boundary를 분리한 상태로 browser-local MVP 기능을 확장
+- localStorage data를 versioned project document로 저장해 future import/export와 cloud migration의 기반 마련
+- React Flow와 ELK vendor 타입이 domain model로 새지 않도록 adapter 경계 유지
+- invalid SQL preservation에 이어 refresh preservation까지 user-critical state recovery flow 확보
+- dependency issue(`web-worker` resolution)를 browser bundle entry로 해결한 사례를 기록 가능
 
 ### Interview Notes
 
--
+- “왜 layout state를 schema model에 넣지 않았나요?”
+- “Re-parse 시 기존 manual positions를 어떻게 보존하나요?”
+- “localStorage 데이터를 왜 runtime validation하나요?”
+- “ELK.js를 React Flow와 직접 섞지 않고 adapter로 둔 이유는 무엇인가요?”
+- “왜 storage write를 drag 중 매 프레임마다 하지 않나요?”
+- “Next.js build에서 `elkjs` 기본 entry 대신 bundled entry를 사용한 이유는 무엇인가요?”
 
 ### Open Questions
 
--
+- large diagram에서 ELK main-thread layout이 사용성을 해치기 시작하는 기준은 무엇인가?
+- viewport restore와 automatic fit-view 사이의 product expectation을 어떻게 조정할 것인가?
+- localStorage quota 초과 시 사용자에게 어떤 recovery action을 제공할 것인가?
+- persisted schema snapshot을 future recovery cache로 적극 사용할 것인가, source re-parse만 유지할 것인가?
 
 ### Next Milestone Preparation
 
--
+- Milestone 9에서 localStorage `ProjectDocumentV1`과 JSON import/export document를 같은 validation path로 공유
+- import 전 현재 local project 교체 confirm/undo strategy 확정
+- PNG export에서 React Flow viewport와 diagram bounds를 어떻게 캡처할지 조사
+- export adapter가 editor controls 없이 diagram content만 포함하도록 DOM boundary 정리
 
 ## Milestone 9: Import And Export
 
