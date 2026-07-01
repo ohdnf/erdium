@@ -124,6 +124,10 @@ PostgreSQL fixture files live in [`fixtures/postgres`](fixtures/postgres):
 
 The 50-table performance fixture verifies that parsing, normalization, and graph mapping stay within the Phase 1 target for a medium reference schema.
 
+## Local Limits
+
+To keep the browser-only workflow responsive, SQL source is limited to 256 KiB for parsing and restored project documents. Project JSON imports are limited to 1 MiB. Oversized inputs show a local error and keep the last valid diagram unchanged.
+
 ## Deployment
 
 The app targets Vercel as a static Next.js deployment target. [`vercel.json`](vercel.json) pins the release build to the repository scripts:

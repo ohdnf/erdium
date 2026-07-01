@@ -7,6 +7,12 @@ import type {
 
 export const PROJECT_DOCUMENT_FORMAT_VERSION = 1;
 export const DEFAULT_LOCAL_PROJECT_ID = "local-default";
+export const MAX_PROJECT_IMPORT_BYTES = 1_048_576;
+export const MAX_SOURCE_SQL_CHARS = 262_144;
+export const PROJECT_IMPORT_SIZE_LIMIT_MESSAGE =
+  "Project JSON import must be 1 MiB or smaller.";
+export const SOURCE_SQL_SIZE_LIMIT_MESSAGE =
+  "SQL source must be 256 KiB or smaller.";
 
 export interface ProjectDocumentV1 {
   formatVersion: 1;
@@ -23,6 +29,15 @@ export type ProjectDocumentParseResult =
   | {
       ok: true;
       document: ProjectDocumentV1;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
+
+export type ProjectLimitValidationResult =
+  | {
+      ok: true;
     }
   | {
       ok: false;
@@ -70,6 +85,12 @@ export function parseProjectDocument(
     return invalidProject("Project document metadata is invalid.");
   }
 
+  const sourceSizeValidation = validateSourceSqlLength(value.sourceSql);
+
+  if (!sourceSizeValidation.ok) {
+    return invalidProject(sourceSizeValidation.message);
+  }
+
   const layout = parseDiagramLayout(value.layout);
 
   if (!layout) {
@@ -91,6 +112,39 @@ export function parseProjectDocument(
       updatedAt: value.updatedAt
     }
   };
+}
+
+export function validateProjectImportSize(
+  sizeBytes: number
+): ProjectLimitValidationResult {
+  if (!Number.isFinite(sizeBytes) || sizeBytes < 0) {
+    return {
+      ok: false,
+      message: "Project JSON import size is invalid."
+    };
+  }
+
+  if (sizeBytes > MAX_PROJECT_IMPORT_BYTES) {
+    return {
+      ok: false,
+      message: PROJECT_IMPORT_SIZE_LIMIT_MESSAGE
+    };
+  }
+
+  return { ok: true };
+}
+
+export function validateSourceSqlLength(
+  sourceSql: string
+): ProjectLimitValidationResult {
+  if (sourceSql.length > MAX_SOURCE_SQL_CHARS) {
+    return {
+      ok: false,
+      message: SOURCE_SQL_SIZE_LIMIT_MESSAGE
+    };
+  }
+
+  return { ok: true };
 }
 
 function parseDiagramLayout(value: unknown): DiagramLayout | null {
