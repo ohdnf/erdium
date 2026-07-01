@@ -12,7 +12,9 @@ export function downloadTextFile(input: {
       url: objectUrl
     });
   } finally {
-    window.URL.revokeObjectURL(objectUrl);
+    window.setTimeout(() => {
+      window.URL.revokeObjectURL(objectUrl);
+    }, 0);
   }
 }
 

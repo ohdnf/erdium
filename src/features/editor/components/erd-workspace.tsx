@@ -217,6 +217,7 @@ export function ErdWorkspace() {
   }, [state.sourceSql, state.layout, state.lastValidSchema, storageReady]);
 
   function parseCurrentSql() {
+    setActionStatus({ kind: "idle" });
     const result = parsePostgresSql({
       dialect: "postgresql",
       sql: state.sourceSql
@@ -246,6 +247,7 @@ export function ErdWorkspace() {
       return;
     }
 
+    setActionStatus({ kind: "idle" });
     setLayoutStatus({ kind: "running" });
     const layoutResult = await layoutDiagramGraphWithElk(graph);
 
@@ -502,12 +504,13 @@ export function ErdWorkspace() {
             id="sql-source"
             spellCheck={false}
             value={state.sourceSql}
-            onChange={(event) =>
+            onChange={(event) => {
+              setActionStatus({ kind: "idle" });
               dispatch({
                 type: "sourceChanged",
                 sourceSql: event.currentTarget.value
-              })
-            }
+              });
+            }}
           />
           <WorkspaceStatus state={state} stale={stale} />
           <ProjectStatus
