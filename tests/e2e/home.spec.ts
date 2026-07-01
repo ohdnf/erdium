@@ -21,6 +21,15 @@ test("renders the Erdium workspace scaffold", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Load sample" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Re-layout" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Reset local" })).toBeEnabled();
+  const githubLink = page.getByRole("link", {
+    name: "Open Erdium GitHub repository"
+  });
+
+  await expect(githubLink).toHaveAttribute(
+    "href",
+    "https://github.com/ohdnf/erdium"
+  );
+  await expect(githubLink).toHaveAttribute("target", "_blank");
   await expect(
     page.getByText("Parsed 3 tables and 2 relationships.")
   ).toBeVisible();

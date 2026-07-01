@@ -147,7 +147,20 @@ pnpm dlx vercel
 pnpm dlx vercel --prod
 ```
 
-After production deployment, record the public URL in the release checklist.
+Normal GitHub Releases deploy production through
+`.github/workflows/release-deploy.yml`. The workflow checks out the published
+release tag, runs linting, type checking, unit tests, end-to-end tests, and then
+deploys prebuilt production output with the Vercel CLI. Prereleases do not
+deploy production.
+
+Configure these GitHub repository settings before publishing a release:
+
+- Secret `VERCEL_TOKEN`
+- Variable `VERCEL_ORG_ID`: `team_gvUsy2MjtWatSu8FKoHK3NPY`
+- Variable `VERCEL_PROJECT_ID`: `prj_EKNqEdvA2azwRgJgBBeXIy8ZuMtz`
+
+The workflow uses the GitHub Release tag as the deployment source. It does not
+derive the tag from `package.json`.
 
 ## Codex Workflow
 
