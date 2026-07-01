@@ -2,7 +2,10 @@ import {
   locationOf,
   parse,
   toSql,
+  type AlterTableStatement,
   type ColumnConstraint,
+  type ColumnConstraintReference,
+  type ConstraintAction,
   type CreateColumnDef,
   type CreateTableStatement,
   type DataTypeDef,
@@ -10,10 +13,12 @@ import {
   type PGNode,
   type QName,
   type Statement,
-  type TableConstraint
+  type TableConstraint,
+  type TableConstraintForeignKey
 } from "pgsql-ast-parser";
 import {
   createColumnId,
+  createForeignKeyId,
   createKeyConstraintId,
   createTableId,
   DEFAULT_POSTGRES_SCHEMA,
@@ -22,9 +27,11 @@ import {
   type Diagnostic,
   type DiagnosticCode,
   type DiagnosticDetailValue,
+  type ForeignKeyDefinition,
   type KeyConstraint,
   type ParseSqlInput,
   type ParseSqlResult,
+  type ReferentialAction,
   type SourcePosition,
   type SourceRange,
   type TableDefinition,
@@ -39,6 +46,34 @@ interface NormalizationContext {
 
 interface MutableColumnDefinition extends ColumnDefinition {
   nullable: boolean;
+}
+
+interface NormalizedCreateTable {
+  table: TableDefinition;
+  foreignKeys: UnresolvedForeignKey[];
+}
+
+interface TableNameLike {
+  schema?: string;
+  name: string;
+}
+
+interface NormalizedTableName {
+  id: string;
+  schemaName: string;
+  name: string;
+  displayName: string;
+}
+
+interface UnresolvedForeignKey {
+  name: Name | null;
+  sourceTableId: string;
+  sourceColumnNames: readonly Name[];
+  targetTable: QName;
+  targetColumnNames: readonly Name[];
+  onDelete: ConstraintAction | undefined;
+  onUpdate: ConstraintAction | undefined;
+  node: PGNode;
 }
 
 export function parsePostgresSql(input: ParseSqlInput): ParseSqlResult {
@@ -71,9 +106,17 @@ export function parsePostgresSql(input: ParseSqlInput): ParseSqlResult {
     diagnostics: []
   };
   const tableIds = new Set<string>();
+  const tablesById = new Map<string, TableDefinition>();
   const tables: TableDefinition[] = [];
+  const unresolvedForeignKeys: UnresolvedForeignKey[] = [];
+  const alterTableStatements: AlterTableStatement[] = [];
 
   for (const statement of statements) {
+    if (statement.type === "alter table") {
+      alterTableStatements.push(statement);
+      continue;
+    }
+
     if (statement.type !== "create table") {
       context.diagnostics.push(
         diagnostic(
@@ -87,11 +130,13 @@ export function parsePostgresSql(input: ParseSqlInput): ParseSqlResult {
       continue;
     }
 
-    const table = normalizeCreateTable(statement, context);
+    const normalized = normalizeCreateTable(statement, context);
 
-    if (!table) {
+    if (!normalized) {
       continue;
     }
+
+    const { table, foreignKeys } = normalized;
 
     if (tableIds.has(table.id)) {
       context.diagnostics.push(
@@ -104,8 +149,13 @@ export function parsePostgresSql(input: ParseSqlInput): ParseSqlResult {
     }
 
     tableIds.add(table.id);
+    tablesById.set(table.id, table);
     tables.push(table);
+    unresolvedForeignKeys.push(...foreignKeys);
   }
+
+  unresolvedForeignKeys.push(...collectAlterTableForeignKeys(alterTableStatements, tablesById, context));
+  const foreignKeys = resolveForeignKeys(unresolvedForeignKeys, tablesById, context);
 
   if (hasErrors(context.diagnostics)) {
     return {
@@ -121,7 +171,7 @@ export function parsePostgresSql(input: ParseSqlInput): ParseSqlResult {
       dialect: "postgresql",
       defaultSchema,
       tables,
-      foreignKeys: []
+      foreignKeys
     },
     diagnostics: context.diagnostics
   };
@@ -130,7 +180,7 @@ export function parsePostgresSql(input: ParseSqlInput): ParseSqlResult {
 function normalizeCreateTable(
   statement: CreateTableStatement,
   context: NormalizationContext
-): TableDefinition | null {
+): NormalizedCreateTable | null {
   if (statement.temporary || statement.unlogged || statement.inherits?.length) {
     context.diagnostics.push(
       diagnostic(
@@ -144,29 +194,24 @@ function normalizeCreateTable(
     return null;
   }
 
-  const tableIdentifier = normalizeTableIdentifier({
-    schema: statement.name.schema,
-    table: statement.name.name,
-    defaultSchema: context.defaultSchema
-  });
-  const tableId = createTableId({
-    schema: tableIdentifier.schema.canonicalName,
-    table: tableIdentifier.table.canonicalName
-  });
-  const displayName = displayTableName(statement.name, context.defaultSchema);
-  const columns = normalizeColumns(statement, tableId, context);
-  const keyConstraints = collectKeyConstraints(statement, tableId, columns, context);
+  const tableName = normalizedTableName(statement.name, context.defaultSchema);
+  const columns = normalizeColumns(statement, tableName.id, context);
+  const keyConstraints = collectKeyConstraints(statement, tableName.id, columns, context);
+  const foreignKeys = collectCreateTableForeignKeys(statement, tableName.id, context);
 
   applyPrimaryKeyNullability(columns, keyConstraints.primaryKey);
 
   return {
-    id: tableId,
-    schemaName: tableIdentifier.schema.canonicalName,
-    name: tableIdentifier.table.canonicalName,
-    displayName,
-    columns,
-    primaryKey: keyConstraints.primaryKey,
-    uniqueConstraints: keyConstraints.uniqueConstraints
+    table: {
+      id: tableName.id,
+      schemaName: tableName.schemaName,
+      name: tableName.name,
+      displayName: tableName.displayName,
+      columns,
+      primaryKey: keyConstraints.primaryKey,
+      uniqueConstraints: keyConstraints.uniqueConstraints
+    },
+    foreignKeys
   };
 }
 
@@ -283,6 +328,299 @@ function collectKeyConstraints(
   return { primaryKey, uniqueConstraints };
 }
 
+function collectCreateTableForeignKeys(
+  statement: CreateTableStatement,
+  sourceTableId: string,
+  context: NormalizationContext
+): UnresolvedForeignKey[] {
+  const foreignKeys: UnresolvedForeignKey[] = [];
+
+  for (const column of statement.columns) {
+    if (column.kind !== "column") {
+      continue;
+    }
+
+    for (const constraint of column.constraints ?? []) {
+      if (constraint.type !== "reference") {
+        continue;
+      }
+
+      foreignKeys.push(
+        createUnresolvedForeignKey({
+          constraint,
+          sourceTableId,
+          sourceColumnNames: [column.name],
+          context
+        })
+      );
+    }
+  }
+
+  for (const constraint of statement.constraints ?? []) {
+    if (constraint.type !== "foreign key") {
+      continue;
+    }
+
+    foreignKeys.push(
+      createUnresolvedForeignKey({
+        constraint,
+        sourceTableId,
+        sourceColumnNames: constraint.localColumns,
+        context
+      })
+    );
+  }
+
+  return foreignKeys;
+}
+
+function collectAlterTableForeignKeys(
+  statements: readonly AlterTableStatement[],
+  tablesById: ReadonlyMap<string, TableDefinition>,
+  context: NormalizationContext
+): UnresolvedForeignKey[] {
+  const foreignKeys: UnresolvedForeignKey[] = [];
+
+  for (const statement of statements) {
+    const sourceTableName = normalizedTableName(statement.table, context.defaultSchema);
+
+    if (!tablesById.has(sourceTableName.id)) {
+      context.diagnostics.push(
+        diagnostic(
+          "UNKNOWN_ALTER_TABLE_TARGET",
+          "error",
+          `ALTER TABLE target does not exist: ${sourceTableName.displayName}.`,
+          rangeFromNode(context.sql, statement.table),
+          { tableId: sourceTableName.id, table: sourceTableName.displayName }
+        )
+      );
+      continue;
+    }
+
+    for (const change of statement.changes) {
+      if (change.type !== "add constraint") {
+        context.diagnostics.push(
+          diagnostic(
+            "UNSUPPORTED_FEATURE",
+            "error",
+            `Unsupported ALTER TABLE change: ${change.type}.`,
+            rangeFromNode(context.sql, change),
+            { feature: `ALTER TABLE ${change.type.toUpperCase()}` }
+          )
+        );
+        continue;
+      }
+
+      if (change.constraint.type !== "foreign key") {
+        context.diagnostics.push(
+          diagnostic(
+            "UNSUPPORTED_FEATURE",
+            "error",
+            `Unsupported ALTER TABLE ADD CONSTRAINT type: ${change.constraint.type}.`,
+            rangeFromNode(context.sql, change.constraint),
+            { feature: `ALTER TABLE ADD CONSTRAINT ${change.constraint.type.toUpperCase()}` }
+          )
+        );
+        continue;
+      }
+
+      foreignKeys.push(
+        createUnresolvedForeignKey({
+          constraint: change.constraint,
+          sourceTableId: sourceTableName.id,
+          sourceColumnNames: change.constraint.localColumns,
+          context
+        })
+      );
+    }
+  }
+
+  return foreignKeys;
+}
+
+function createUnresolvedForeignKey(input: {
+  constraint: ColumnConstraintReference | TableConstraintForeignKey;
+  sourceTableId: string;
+  sourceColumnNames: readonly Name[];
+  context: NormalizationContext;
+}): UnresolvedForeignKey {
+  reportUnsupportedForeignKeyOptions(input.constraint, input.context);
+
+  return {
+    name: input.constraint.constraintName ?? null,
+    sourceTableId: input.sourceTableId,
+    sourceColumnNames: input.sourceColumnNames,
+    targetTable: input.constraint.foreignTable,
+    targetColumnNames: input.constraint.foreignColumns,
+    onDelete: input.constraint.onDelete,
+    onUpdate: input.constraint.onUpdate,
+    node: input.constraint
+  };
+}
+
+function resolveForeignKeys(
+  unresolvedForeignKeys: readonly UnresolvedForeignKey[],
+  tablesById: ReadonlyMap<string, TableDefinition>,
+  context: NormalizationContext
+): ForeignKeyDefinition[] {
+  const foreignKeys: ForeignKeyDefinition[] = [];
+  const foreignKeyIds = new Set<string>();
+
+  for (const unresolved of unresolvedForeignKeys) {
+    const sourceTable = tablesById.get(unresolved.sourceTableId);
+
+    if (!sourceTable) {
+      context.diagnostics.push(
+        diagnostic("NORMALIZATION_ERROR", "error", "Foreign key source table was not collected.", rangeFromNode(context.sql, unresolved.node), {
+          tableId: unresolved.sourceTableId
+        })
+      );
+      continue;
+    }
+
+    if (unresolved.targetColumnNames.length === 0) {
+      context.diagnostics.push(
+        diagnostic(
+          "UNSUPPORTED_FEATURE",
+          "error",
+          "Foreign keys must specify referenced columns explicitly.",
+          rangeFromNode(context.sql, unresolved.node),
+          { feature: "REFERENCES_WITHOUT_COLUMNS" }
+        )
+      );
+      continue;
+    }
+
+    if (unresolved.sourceColumnNames.length !== unresolved.targetColumnNames.length) {
+      context.diagnostics.push(
+        diagnostic(
+          "FOREIGN_KEY_COLUMN_COUNT_MISMATCH",
+          "error",
+          "Foreign key source and target column counts differ.",
+          rangeFromNode(context.sql, unresolved.node),
+          {
+            sourceColumnCount: unresolved.sourceColumnNames.length,
+            targetColumnCount: unresolved.targetColumnNames.length
+          }
+        )
+      );
+      continue;
+    }
+
+    const sourceColumnIds = resolveSourceColumnIds(unresolved, sourceTable, context);
+    const targetTableName = normalizedTableName(unresolved.targetTable, context.defaultSchema);
+    const targetTable = tablesById.get(targetTableName.id);
+
+    if (!targetTable) {
+      context.diagnostics.push(
+        diagnostic(
+          "UNRESOLVED_REFERENCE_TABLE",
+          "error",
+          `Foreign key references unknown table: ${targetTableName.displayName}.`,
+          rangeFromNode(context.sql, unresolved.targetTable),
+          { tableId: targetTableName.id, table: targetTableName.displayName }
+        )
+      );
+      continue;
+    }
+
+    const targetColumnIds = resolveTargetColumnIds(unresolved, targetTable, context);
+
+    if (sourceColumnIds.length !== unresolved.sourceColumnNames.length || targetColumnIds.length !== unresolved.targetColumnNames.length) {
+      continue;
+    }
+
+    const foreignKey: ForeignKeyDefinition = {
+      id: createForeignKeyId({
+        name: unresolved.name?.name ?? null,
+        sourceTableId: sourceTable.id,
+        sourceColumnIds,
+        targetTableId: targetTable.id,
+        targetColumnIds
+      }),
+      name: unresolved.name?.name ?? null,
+      sourceTableId: sourceTable.id,
+      sourceColumnIds,
+      targetTableId: targetTable.id,
+      targetColumnIds,
+      onDelete: normalizeReferentialAction(unresolved.onDelete),
+      onUpdate: normalizeReferentialAction(unresolved.onUpdate)
+    };
+
+    if (foreignKeyIds.has(foreignKey.id)) {
+      context.diagnostics.push(
+        diagnostic("DUPLICATE_CONSTRAINT", "error", "Duplicate foreign-key constraint.", rangeFromNode(context.sql, unresolved.node), {
+          constraintId: foreignKey.id
+        })
+      );
+      continue;
+    }
+
+    foreignKeyIds.add(foreignKey.id);
+    foreignKeys.push(foreignKey);
+  }
+
+  return foreignKeys;
+}
+
+function resolveSourceColumnIds(
+  foreignKey: UnresolvedForeignKey,
+  sourceTable: TableDefinition,
+  context: NormalizationContext
+): string[] {
+  const columnIds: string[] = [];
+
+  for (const columnName of foreignKey.sourceColumnNames) {
+    const columnId = createColumnId(sourceTable.id, columnName.name);
+
+    if (!sourceTable.columns.some((column) => column.id === columnId)) {
+      context.diagnostics.push(
+        diagnostic(
+          "UNKNOWN_CONSTRAINT_COLUMN",
+          "error",
+          `Foreign key references unknown source column: ${columnName.name}.`,
+          rangeFromNode(context.sql, columnName),
+          { tableId: sourceTable.id, column: columnName.name }
+        )
+      );
+      continue;
+    }
+
+    columnIds.push(columnId);
+  }
+
+  return columnIds;
+}
+
+function resolveTargetColumnIds(
+  foreignKey: UnresolvedForeignKey,
+  targetTable: TableDefinition,
+  context: NormalizationContext
+): string[] {
+  const columnIds: string[] = [];
+
+  for (const columnName of foreignKey.targetColumnNames) {
+    const columnId = createColumnId(targetTable.id, columnName.name);
+
+    if (!targetTable.columns.some((column) => column.id === columnId)) {
+      context.diagnostics.push(
+        diagnostic(
+          "UNRESOLVED_REFERENCE_COLUMN",
+          "error",
+          `Foreign key references unknown target column: ${columnName.name}.`,
+          rangeFromNode(context.sql, columnName),
+          { tableId: targetTable.id, column: columnName.name }
+        )
+      );
+      continue;
+    }
+
+    columnIds.push(columnId);
+  }
+
+  return columnIds;
+}
+
 function createKeyConstraint(
   tableId: string,
   kind: "primary-key" | "unique",
@@ -389,14 +727,6 @@ function reportUnsupportedColumnFeatures(
   }
 
   for (const constraint of column.constraints ?? []) {
-    if (constraint.type === "reference") {
-      context.diagnostics.push(
-        diagnostic("UNSUPPORTED_FEATURE", "error", "Inline foreign keys are handled in Milestone 5.", rangeFromNode(context.sql, constraint), {
-          feature: "REFERENCES"
-        })
-      );
-    }
-
     if (constraint.type === "check") {
       context.diagnostics.push(
         diagnostic("UNSUPPORTED_FEATURE", "error", "CHECK constraints are not supported yet.", rangeFromNode(context.sql, constraint), {
@@ -419,15 +749,6 @@ function reportUnsupportedTableConstraint(
   constraint: TableConstraint,
   context: NormalizationContext
 ): void {
-  if (constraint.type === "foreign key") {
-    context.diagnostics.push(
-      diagnostic("UNSUPPORTED_FEATURE", "error", "Foreign keys are handled in Milestone 5.", rangeFromNode(context.sql, constraint), {
-        feature: "FOREIGN KEY"
-      })
-    );
-    return;
-  }
-
   if (constraint.type === "check") {
     context.diagnostics.push(
       diagnostic("UNSUPPORTED_FEATURE", "error", "CHECK constraints are not supported yet.", rangeFromNode(context.sql, constraint), {
@@ -464,7 +785,57 @@ function displayDataType(dataType: DataTypeDef, context: NormalizationContext): 
   return sourceSliceWithBalancedParentheses(context.sql, dataType) ?? toSql.dataType(dataType).trim();
 }
 
-function displayTableName(name: QName, defaultSchema: string): string {
+function reportUnsupportedForeignKeyOptions(
+  constraint: ColumnConstraintReference | TableConstraintForeignKey,
+  context: NormalizationContext
+): void {
+  if (constraint.match) {
+    context.diagnostics.push(
+      diagnostic("UNSUPPORTED_FEATURE", "error", "Foreign-key MATCH clauses are not supported yet.", rangeFromNode(context.sql, constraint), {
+        feature: "MATCH"
+      })
+    );
+  }
+}
+
+function normalizeReferentialAction(action: ConstraintAction | undefined): ReferentialAction | null {
+  if (!action) {
+    return null;
+  }
+
+  switch (action) {
+    case "cascade":
+      return "CASCADE";
+    case "no action":
+      return "NO ACTION";
+    case "restrict":
+      return "RESTRICT";
+    case "set default":
+      return "SET DEFAULT";
+    case "set null":
+      return "SET NULL";
+  }
+}
+
+function normalizedTableName(name: TableNameLike, defaultSchema: string): NormalizedTableName {
+  const tableIdentifier = normalizeTableIdentifier({
+    schema: name.schema,
+    table: name.name,
+    defaultSchema
+  });
+
+  return {
+    id: createTableId({
+      schema: tableIdentifier.schema.canonicalName,
+      table: tableIdentifier.table.canonicalName
+    }),
+    schemaName: tableIdentifier.schema.canonicalName,
+    name: tableIdentifier.table.canonicalName,
+    displayName: displayTableName(name, defaultSchema)
+  };
+}
+
+function displayTableName(name: TableNameLike, defaultSchema: string): string {
   const table = normalizePostgresIdentifier(name.name).displayName;
 
   if (!name.schema) {

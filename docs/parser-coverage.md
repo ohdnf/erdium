@@ -233,20 +233,13 @@ Required assertions include:
 
 ## 12. Tests still required before Phase 1 release
 
-The three initial fixtures do not cover every required failure path. Add focused fixtures or inline test SQL for:
+The three initial fixtures do not cover every required failure path. Focused tests already cover invalid SQL diagnostics, duplicate table and column detection, unknown foreign-key targets and columns, composite foreign-key column-count mismatches, duplicate foreign-key identities, unsupported non-foreign-key `ALTER TABLE` changes, and forward-referenced table definitions.
 
-- Invalid SQL with line and column diagnostics
-- Duplicate table after normalization
-- Duplicate column
-- Unknown `ALTER TABLE` target
-- Unknown source constraint column
-- Unknown referenced table
-- Unknown referenced column
-- Composite FK column-count mismatch
+Add focused fixtures or inline test SQL for:
+
 - Explicit `public.table` resolving identically to unqualified `table`
 - Quoted identifiers before claiming full quoted-identifier support
 - Comments and varied formatting producing equivalent schemas
-- Forward-referenced table definitions
 
 ## 13. Adding coverage
 

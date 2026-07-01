@@ -233,31 +233,59 @@
 
 ### Completed Work
 
--
+- `CREATE TABLE` inline `REFERENCES`와 table-level `FOREIGN KEY`를 `ForeignKeyDefinition`으로 normalize
+- `ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY`를 table 수집 이후 적용하는 흐름 추가
+- FK source/target table과 column을 stable ID로 resolution하는 pass 구현
+- `ON DELETE` / `ON UPDATE` action을 domain union 값으로 normalize
+- unknown table/column, column-count mismatch, unsupported ALTER에 대한 diagnostic test 추가
 
 ### Concepts To Review
 
--
+- multi-pass normalization: statement 순서와 relation resolution을 분리하는 방식
+- unresolved declaration: parser AST에서 바로 domain relation을 만들지 않고 임시 선언으로 수집하는 이유
+- forward reference: 참조 대상 table이 뒤에 선언되어도 마지막 pass에서 해결하는 방식
+- composite foreign key: 여러 column pair를 하나의 ordered relation으로 유지하는 모델링
+- referential action: vendor parser 문자열을 closed union domain value로 변환하는 방식
+- diagnostic-first parsing: 조용히 무시하지 않고 실패 가능한 입력을 명시적으로 막는 정책
 
 ### Code To Revisit
 
--
+- `src/adapters/parser/postgres/parse-postgres-sql.ts`: table collection, ALTER collection, FK resolution pass 흐름 확인
+- `src/adapters/parser/postgres/parse-postgres-sql.test.ts`: fixture 기반 FK semantic assertion 확인
+- `src/domain/schema/model.ts`: `ForeignKeyDefinition`과 ordered column ID 배열 확인
+- `src/domain/schema/identifiers.ts`: `createForeignKeyId`가 relation identity를 구성하는 방식 확인
+- `fixtures/postgres/foreign-key.sql`, `fixtures/postgres/alter-table.sql`: FK coverage contract 확인
 
 ### Portfolio Notes
 
--
+- SQL parser AST를 application-owned schema model로 변환하는 adapter boundary 유지
+- table/column/constraint/FK ID를 stable identifier로 관리해 future layout persistence와 연결 가능
+- forward reference와 `ALTER TABLE`을 multi-pass로 해결해 실제 DDL 입력에 가까운 흐름 지원
+- FK 오류를 user-facing diagnostic으로 표현해 parser reliability와 product safety를 함께 보여줄 수 있음
+- fixture comments를 실제 semantic assertions로 전환해 테스트가 문서 역할을 하도록 구성
 
 ### Interview Notes
 
--
+- “왜 foreign key는 단일 pass가 아니라 multi-pass로 처리했나요?”
+- “parser AST의 FK 선언과 domain `ForeignKeyDefinition`은 어떻게 다르게 설계했나요?”
+- “forward reference와 `ALTER TABLE` FK는 어떻게 해결하나요?”
+- “composite foreign key에서 column order가 왜 중요한가요?”
+- “referential action을 string 그대로 두지 않고 union으로 normalize한 이유는 무엇인가요?”
+- “unsupported ALTER operation을 왜 무시하지 않고 diagnostic으로 처리했나요?”
 
 ### Open Questions
 
--
+- quoted identifier가 FK source/target column resolution에서 충분히 보존되는지 별도 fixture가 필요한가?
+- `REFERENCES table`처럼 target column이 생략된 PostgreSQL syntax를 Phase 1에서 지원할지, 계속 제외할지 결정 필요
+- named constraint collision을 ID collision 기준만으로 볼지, DB처럼 table scope name uniqueness도 검증할지 결정 필요
+- future MySQL/SQLite adapter에서 FK action과 identifier normalization 차이를 domain model이 충분히 흡수할 수 있는지 확인 필요
 
 ### Next Milestone Preparation
 
--
+- hard-coded `DatabaseSchema` 또는 parser output을 diagram graph model로 변환하는 slice 준비
+- `ForeignKeyDefinition`을 diagram edge로 매핑할 때 composite FK를 하나의 edge로 유지하는 기준 정리
+- React Flow 도입 전 vendor-neutral graph type과 adapter boundary를 먼저 설계
+- table/column display metadata와 relation metadata 중 diagram node/edge에 필요한 최소 정보 결정
 
 ## Milestone 6: Hard-Coded Diagram Vertical Slice
 
