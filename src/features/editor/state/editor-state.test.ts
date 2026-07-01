@@ -91,7 +91,7 @@ describe("editorReducer", () => {
     const initialState = createEditorStateFromParseResult("valid sql", {
       ok: true,
       schema,
-      diagnostics: []
+      diagnostics: [parseError]
     });
     const state = editorReducer(initialState, {
       type: "sourceChanged",
@@ -101,6 +101,7 @@ describe("editorReducer", () => {
     expect(state.parseStatus).toBe("idle");
     expect(state.lastValidSchema).toBe(schema);
     expect(state.lastParsedSql).toBe("valid sql");
+    expect(state.diagnostics).toEqual([]);
     expect(isDiagramStale(state)).toBe(true);
   });
 
@@ -125,6 +126,26 @@ describe("editorReducer", () => {
     expect(failedState.lastParsedSql).toBe("valid sql");
     expect(failedState.diagnostics).toEqual([parseError]);
     expect(isDiagramStale(failedState)).toBe(true);
+  });
+
+  it("clears stale diagnostics when the source changes after a failed parse", () => {
+    const initialState = createEditorStateFromParseResult("valid sql", {
+      ok: true,
+      schema,
+      diagnostics: []
+    });
+    const failedState = editorReducer(initialState, {
+      type: "parseFailed",
+      diagnostics: [parseError]
+    });
+    const editedState = editorReducer(failedState, {
+      type: "sourceChanged",
+      sourceSql: "valid sql\n-- revised"
+    });
+
+    expect(editedState.parseStatus).toBe("idle");
+    expect(editedState.diagnostics).toEqual([]);
+    expect(editedState.lastValidSchema).toBe(schema);
   });
 
   it("commits a new last valid schema after a successful parse", () => {

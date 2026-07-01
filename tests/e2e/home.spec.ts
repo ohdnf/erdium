@@ -92,6 +92,7 @@ test("parses edited SQL and preserves the last valid diagram on errors", async (
   id BIGSERIAL PRIMARY KEY,
   name TEXT NOT NULL UNIQUE
 );`);
+  await expect(page.getByText("SQL_PARSE_ERROR")).toBeHidden();
   await parseButton.click();
 
   await expect(page.getByText("Parsed 1 tables and 0 relationships.")).toBeVisible();

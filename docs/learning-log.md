@@ -352,7 +352,7 @@
 - `ErdWorkspace` client component를 추가해 SQL source, parse status, diagnostics, last valid schema 상태 관리
 - explicit Parse action으로 `parsePostgresSql -> DatabaseSchema -> DiagramGraph -> React Flow` 경로 연결
 - parse 실패 시 current SQL과 diagnostics를 갱신하면서 last valid diagram을 유지하는 reducer transition 구현
-- SQL 변경 후 diagram stale 상태를 user-visible status로 표시
+- SQL 변경 후 diagram stale 상태를 user-visible status로 표시하고 이전 입력에 대한 stale diagnostics 제거
 - sample SQL loading action을 추가하고 기존 SQL 교체 전 confirm guard 적용
 - reducer unit test와 Playwright flow로 valid parse, invalid diagnostics, last-valid diagram 보존 검증
 

@@ -216,7 +216,7 @@ function statusText(state: EditorState, stale: boolean): string {
     return "SQL changed since the last successful parse.";
   }
 
-  if (state.parseStatus === "valid" && state.lastValidSchema) {
+  if (state.lastValidSchema) {
     return `Parsed ${state.lastValidSchema.tables.length} tables and ${state.lastValidSchema.foreignKeys.length} relationships.`;
   }
 

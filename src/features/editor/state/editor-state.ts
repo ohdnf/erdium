@@ -66,7 +66,8 @@ export function editorReducer(
       return {
         ...state,
         sourceSql: action.sourceSql,
-        parseStatus: "idle"
+        parseStatus: "idle",
+        diagnostics: []
       };
     case "sampleLoaded":
       return {
