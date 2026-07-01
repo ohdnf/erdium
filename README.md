@@ -130,7 +130,12 @@ To keep the browser-only workflow responsive, SQL source is limited to 256 KiB f
 
 ## Deployment
 
-The app targets Vercel as a static Next.js deployment target. [`vercel.json`](vercel.json) pins the release build to the repository scripts:
+Production deploys are driven by normal GitHub Releases. When a non-prerelease
+release is published, `.github/workflows/release-deploy.yml` checks out the
+published tag, runs linting, type checking, unit tests, end-to-end tests, and
+then deploys prebuilt production output to Vercel.
+
+The app targets Vercel as a static Next.js deployment target. [`vercel.json`](vercel.json) pins the Vercel build commands used by the release workflow:
 
 ```json
 {
@@ -140,19 +145,6 @@ The app targets Vercel as a static Next.js deployment target. [`vercel.json`](ve
 }
 ```
 
-Deploy with an authenticated Vercel account:
-
-```bash
-pnpm dlx vercel
-pnpm dlx vercel --prod
-```
-
-Normal GitHub Releases deploy production through
-`.github/workflows/release-deploy.yml`. The workflow checks out the published
-release tag, runs linting, type checking, unit tests, end-to-end tests, and then
-deploys prebuilt production output with the Vercel CLI. Prereleases do not
-deploy production.
-
 Configure these GitHub repository settings before publishing a release:
 
 - Secret `VERCEL_TOKEN`
@@ -160,7 +152,14 @@ Configure these GitHub repository settings before publishing a release:
 - Variable `VERCEL_PROJECT_ID`: `prj_EKNqEdvA2azwRgJgBBeXIy8ZuMtz`
 
 The workflow uses the GitHub Release tag as the deployment source. It does not
-derive the tag from `package.json`.
+derive the tag from `package.json`. Prereleases do not deploy production.
+
+For manual fallback deployments, use an authenticated Vercel account:
+
+```bash
+pnpm dlx vercel
+pnpm dlx vercel --prod
+```
 
 ## Codex Workflow
 
