@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@xyflow/react": "^12.11.1",
+    "elkjs": "^0.11.1",
     "next": "^16.2.9",
     "pgsql-ast-parser": "12.0.2",
     "react": "^19.2.7",

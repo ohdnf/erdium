@@ -1,5 +1,6 @@
 import { MarkerType, type DefaultEdgeOptions } from "@xyflow/react";
 import type { DiagramGraph } from "../graph/model";
+import type { DiagramLayout } from "../layout/model";
 import type { ForeignKeyFlowEdge, TableFlowNode } from "./types";
 
 export const defaultForeignKeyEdgeOptions = {
@@ -16,12 +17,15 @@ export const defaultForeignKeyEdgeOptions = {
   }
 } satisfies DefaultEdgeOptions;
 
-export function toReactFlowNodes(graph: DiagramGraph): TableFlowNode[] {
+export function toReactFlowNodes(
+  graph: DiagramGraph,
+  layout: DiagramLayout
+): TableFlowNode[] {
   return graph.nodes.map((node, index) => ({
     id: node.id,
     type: "table",
     data: { diagramNode: node },
-    position: positionForIndex(index),
+    position: layout.positions[node.id] ?? positionForIndex(index),
     connectable: false
   }));
 }

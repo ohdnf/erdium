@@ -3,6 +3,19 @@ import type {
   Diagnostic,
   ParseSqlResult
 } from "../../../domain/schema";
+import type { DiagramGraph } from "../../diagram/graph/model";
+import {
+  mergeAutoLayout,
+  updateNodePosition,
+  updateViewport,
+  type AutoLayoutMergeMode
+} from "../../diagram/layout/merge-layout";
+import {
+  createEmptyDiagramLayout,
+  type DiagramLayout,
+  type DiagramPosition,
+  type DiagramViewport
+} from "../../diagram/layout/model";
 
 export type ParseStatus = "idle" | "valid" | "invalid";
 
@@ -12,6 +25,7 @@ export interface EditorState {
   lastValidSchema: DatabaseSchema | null;
   diagnostics: Diagnostic[];
   lastParsedSql: string | null;
+  layout: DiagramLayout;
 }
 
 export type EditorAction =
@@ -28,6 +42,26 @@ export type EditorAction =
       sourceSql: string;
       schema: DatabaseSchema;
       diagnostics: Diagnostic[];
+      layout: DiagramLayout;
+    }
+  | {
+      type: "autoLayoutApplied";
+      graph: DiagramGraph;
+      positions: Record<string, DiagramPosition>;
+      mode: AutoLayoutMergeMode;
+    }
+  | {
+      type: "nodePositionChanged";
+      nodeId: string;
+      position: DiagramPosition;
+    }
+  | {
+      type: "viewportChanged";
+      viewport: DiagramViewport;
+    }
+  | {
+      type: "projectRestored";
+      state: EditorState;
     }
   | {
       type: "parseFailed";
@@ -36,7 +70,8 @@ export type EditorAction =
 
 export function createEditorStateFromParseResult(
   sourceSql: string,
-  result: ParseSqlResult
+  result: ParseSqlResult,
+  layout: DiagramLayout = createEmptyDiagramLayout()
 ): EditorState {
   if (result.ok) {
     return {
@@ -44,7 +79,8 @@ export function createEditorStateFromParseResult(
       parseStatus: "valid",
       lastValidSchema: result.schema,
       diagnostics: result.diagnostics,
-      lastParsedSql: sourceSql
+      lastParsedSql: sourceSql,
+      layout
     };
   }
 
@@ -53,7 +89,8 @@ export function createEditorStateFromParseResult(
     parseStatus: "invalid",
     lastValidSchema: null,
     diagnostics: result.diagnostics,
-    lastParsedSql: null
+    lastParsedSql: null,
+    layout
   };
 }
 
@@ -82,8 +119,31 @@ export function editorReducer(
         parseStatus: "valid",
         lastValidSchema: action.schema,
         diagnostics: action.diagnostics,
-        lastParsedSql: action.sourceSql
+        lastParsedSql: action.sourceSql,
+        layout: action.layout
       };
+    case "autoLayoutApplied":
+      return {
+        ...state,
+        layout: mergeAutoLayout({
+          graph: action.graph,
+          currentLayout: state.layout,
+          autoPositions: action.positions,
+          mode: action.mode
+        })
+      };
+    case "nodePositionChanged":
+      return {
+        ...state,
+        layout: updateNodePosition(state.layout, action.nodeId, action.position)
+      };
+    case "viewportChanged":
+      return {
+        ...state,
+        layout: updateViewport(state.layout, action.viewport)
+      };
+    case "projectRestored":
+      return action.state;
     case "parseFailed":
       return {
         ...state,
