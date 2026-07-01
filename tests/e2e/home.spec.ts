@@ -1,6 +1,12 @@
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
+const MAX_PROJECT_IMPORT_BYTES = 1_048_576;
+const MAX_SOURCE_SQL_CHARS = 262_144;
+const PROJECT_IMPORT_SIZE_LIMIT_MESSAGE =
+  "Project JSON import must be 1 MiB or smaller.";
+const SOURCE_SQL_SIZE_LIMIT_MESSAGE = "SQL source must be 256 KiB or smaller.";
+
 test("renders the Erdium workspace scaffold", async ({ page }) => {
   await page.goto("/");
 
@@ -101,6 +107,27 @@ test("parses edited SQL and preserves the last valid diagram on errors", async (
   await expect(page.getByText("Parsed 1 tables and 0 relationships.")).toBeVisible();
   await expect(
     diagram.getByRole("heading", { level: 3, name: "teams" })
+  ).toBeVisible();
+});
+
+test("rejects oversized SQL without replacing the last valid diagram", async ({
+  page
+}) => {
+  await page.goto("/");
+
+  const sqlSource = page.getByRole("textbox", { name: "SQL source" });
+  const diagram = page.getByTestId("schema-diagram");
+
+  await expect(
+    diagram.getByRole("heading", { level: 3, name: "organizations" })
+  ).toBeVisible();
+
+  await sqlSource.fill("x".repeat(MAX_SOURCE_SQL_CHARS + 1));
+  await page.getByRole("button", { name: "Parse" }).click();
+
+  await expect(page.getByText(SOURCE_SQL_SIZE_LIMIT_MESSAGE)).toBeVisible();
+  await expect(
+    diagram.getByRole("heading", { level: 3, name: "organizations" })
   ).toBeVisible();
 });
 
@@ -292,6 +319,29 @@ test("exports and imports project JSON", async ({ page }, testInfo) => {
     page
       .getByTestId("schema-diagram")
       .getByRole("heading", { level: 3, name: "teams" })
+  ).toBeVisible();
+});
+
+test("rejects oversized project JSON imports", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  const oversizedImportPath = testInfo.outputPath("oversized-import-project.json");
+
+  await writeFile(oversizedImportPath, "x".repeat(MAX_PROJECT_IMPORT_BYTES + 1));
+
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles(oversizedImportPath);
+
+  await expect(page.getByText(PROJECT_IMPORT_SIZE_LIMIT_MESSAGE)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "SQL source" })).toHaveValue(
+    /CREATE TABLE organizations/
+  );
+  await expect(
+    page
+      .getByTestId("schema-diagram")
+      .getByRole("heading", { level: 3, name: "organizations" })
   ).toBeVisible();
 });
 

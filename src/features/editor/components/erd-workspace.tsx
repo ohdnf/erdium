@@ -20,7 +20,11 @@ import {
   removeLocalProject,
   saveLocalProject
 } from "../../../adapters/persistence/local-storage/local-project-repository";
-import { createProjectDocument } from "../../project/serialization/project-document";
+import {
+  createProjectDocument,
+  validateProjectImportSize,
+  validateSourceSqlLength
+} from "../../project/serialization/project-document";
 import {
   createDiagramPngFilename,
   createProjectExport,
@@ -218,6 +222,16 @@ export function ErdWorkspace() {
 
   function parseCurrentSql() {
     setActionStatus({ kind: "idle" });
+    const sourceSizeValidation = validateSourceSqlLength(state.sourceSql);
+
+    if (!sourceSizeValidation.ok) {
+      setActionStatus({
+        kind: "error",
+        message: sourceSizeValidation.message
+      });
+      return;
+    }
+
     const result = parsePostgresSql({
       dialect: "postgresql",
       sql: state.sourceSql
@@ -394,6 +408,16 @@ export function ErdWorkspace() {
     event.currentTarget.value = "";
 
     if (!file) {
+      return;
+    }
+
+    const importSizeValidation = validateProjectImportSize(file.size);
+
+    if (!importSizeValidation.ok) {
+      setActionStatus({
+        kind: "error",
+        message: importSizeValidation.message
+      });
       return;
     }
 

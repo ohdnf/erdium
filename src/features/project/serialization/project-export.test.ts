@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_SOURCE_SQL_CHARS,
+  SOURCE_SQL_SIZE_LIMIT_MESSAGE
+} from "./project-document";
+import {
   createDiagramPngFilename,
   createProjectExport,
   createProjectFilename,
@@ -56,5 +60,24 @@ describe("project import/export helpers", () => {
     expect(
       createDiagramPngFilename(new Date("2026-07-01T00:00:00.000Z"))
     ).toBe("erdium-diagram-2026-07-01T00-00-00-000Z.png");
+  });
+
+  it("rejects imported project JSON with oversized SQL source", () => {
+    expect(
+      parseProjectImportText(
+        JSON.stringify({
+          formatVersion: 1,
+          projectId: "local-default",
+          name: "Imported project",
+          dialect: "postgresql",
+          sourceSql: "x".repeat(MAX_SOURCE_SQL_CHARS + 1),
+          layout,
+          updatedAt: "2026-07-01T00:00:00.000Z"
+        })
+      )
+    ).toEqual({
+      ok: false,
+      message: SOURCE_SQL_SIZE_LIMIT_MESSAGE
+    });
   });
 });
