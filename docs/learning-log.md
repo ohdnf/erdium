@@ -536,28 +536,56 @@
 
 ### Completed Work
 
--
+- Phase 1 README를 현재 MVP 상태 기준으로 재작성해 기능, 지원 SQL 범위, 아키텍처, 실행 스크립트, 테스트 fixture, Vercel 배포 절차, Codex workflow를 문서화
+- 50-table reference fixture를 추가해 중간 규모 schema가 parser normalization과 graph mapping을 통과하는지 검증
+- reference performance unit test를 추가해 50-table fixture parse/normalize/map 흐름과 2초 내 목표를 확인
+- Playwright critical path에 50-table fixture 렌더링 검증을 추가
+- Vercel 배포 설정(`vercel.json`)을 추가해 pnpm frozen install과 repository build script를 명시
+- Phase 1 release checklist를 추가해 PRD success criteria별 evidence와 미완료 외부 배포 항목을 구분
 
 ### Concepts To Review
 
--
+- Release hardening: 새 기능 추가보다 문서, 검증, 배포 준비, 성공 기준 audit에 집중하는 단계
+- Performance fixture: 정확한 pixel이나 layout 좌표보다 parser/graph의 stable properties와 시간 목표를 검증하는 방식
+- Deployment config: Vercel이 Next.js를 auto-detect하더라도 install/build command를 명시해 CI와 production build를 맞추는 이유
+- Release checklist: 자동화로 확인 가능한 항목과 외부 계정/환경이 필요한 항목을 분리해서 추적하는 방식
+- README as contract: 사용자가 기대할 수 있는 지원 범위와 Phase 1 제외 범위를 명확히 적어 product scope drift를 줄이는 방식
 
 ### Code To Revisit
 
--
+- `README.md`: Phase 1 기능, supported SQL, local-first privacy, setup, deployment documentation 확인
+- `docs/release-checklist.md`: PRD success criteria와 release verification evidence 확인
+- `vercel.json`: Vercel install/build command가 package scripts와 일치하는지 확인
+- `fixtures/postgres/performance-50-tables.sql`: reference performance schema 구조 확인
+- `src/shared/reference-performance.test.ts`: parser/normalizer/graph mapper performance assertion 확인
+- `tests/e2e/home.spec.ts`: browser-level 50-table rendering critical path 확인
 
 ### Portfolio Notes
 
--
+- Phase 1 MVP를 기능 구현뿐 아니라 문서, 배포 설정, release evidence까지 포함해 마무리
+- PRD success criteria를 release checklist로 변환해 완료 기준을 추적 가능한 artifact로 남김
+- medium-size reference fixture를 통해 "toy schema only"가 아니라 50-table 입력까지 MVP target을 검증
+- Vercel 배포 준비와 actual production deployment dependency를 분리해 external account requirement를 투명하게 기록
+- README를 사용 설명서와 architecture overview 역할을 겸하도록 정리해 프로젝트 평가자가 빠르게 기능과 제약을 이해할 수 있게 함
 
 ### Interview Notes
 
--
+- “Release hardening milestone에서는 왜 새 기능보다 문서와 검증을 우선했나요?”
+- “성능 기준을 exact layout이 아니라 parser/graph stable properties로 검증한 이유는 무엇인가요?”
+- “Vercel 설정에서 install/build command를 명시한 이유는 무엇인가요?”
+- “PRD success criteria를 어떻게 release checklist로 바꿨나요?”
+- “public deployment처럼 외부 인증이 필요한 항목은 어떻게 리스크로 관리하나요?”
+- “README에 out-of-scope를 명확히 쓰는 것이 왜 제품 품질에 도움이 되나요?”
 
 ### Open Questions
 
--
+- production Vercel project를 어느 계정/team에 연결하고 public URL을 어디에 기록할 것인가?
+- 50-table target 이후 100-table 이상 large schema에서 Web Worker layout이 필요한 기준은 무엇인가?
+- README의 supported syntax를 docs/parser-coverage.md에서 자동 생성할 필요가 있는가?
+- release checklist를 PR template이나 GitHub issue checklist로 승격할지 결정 필요
 
 ### Next Milestone Preparation
 
--
+- 인증된 Vercel account로 production deployment를 실행하고 release checklist에 public URL 기록
+- Phase 1 release 후 사용자 피드백을 기준으로 quoted identifier fixture, index display, full-diagram PNG export 중 다음 개선 항목 선정
+- future Phase 2 scope를 시작하기 전에 direct database connection, auth, cloud persistence 중 product priority 재확정

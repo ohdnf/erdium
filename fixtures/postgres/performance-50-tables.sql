@@ -1,0 +1,298 @@
+CREATE TABLE perf_table_01 (
+  id BIGSERIAL PRIMARY KEY,
+  label TEXT NOT NULL DEFAULT 'table 01'
+);
+
+CREATE TABLE perf_table_02 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_01 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 02'
+);
+
+CREATE TABLE perf_table_03 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_02 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 03'
+);
+
+CREATE TABLE perf_table_04 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_03 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 04'
+);
+
+CREATE TABLE perf_table_05 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_04 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 05'
+);
+
+CREATE TABLE perf_table_06 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_05 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 06'
+);
+
+CREATE TABLE perf_table_07 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_06 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 07'
+);
+
+CREATE TABLE perf_table_08 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_07 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 08'
+);
+
+CREATE TABLE perf_table_09 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_08 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 09'
+);
+
+CREATE TABLE perf_table_10 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_09 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 10'
+);
+
+CREATE TABLE perf_table_11 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_10 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 11'
+);
+
+CREATE TABLE perf_table_12 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_11 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 12'
+);
+
+CREATE TABLE perf_table_13 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_12 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 13'
+);
+
+CREATE TABLE perf_table_14 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_13 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 14'
+);
+
+CREATE TABLE perf_table_15 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_14 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 15'
+);
+
+CREATE TABLE perf_table_16 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_15 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 16'
+);
+
+CREATE TABLE perf_table_17 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_16 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 17'
+);
+
+CREATE TABLE perf_table_18 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_17 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 18'
+);
+
+CREATE TABLE perf_table_19 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_18 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 19'
+);
+
+CREATE TABLE perf_table_20 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_19 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 20'
+);
+
+CREATE TABLE perf_table_21 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_20 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 21'
+);
+
+CREATE TABLE perf_table_22 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_21 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 22'
+);
+
+CREATE TABLE perf_table_23 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_22 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 23'
+);
+
+CREATE TABLE perf_table_24 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_23 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 24'
+);
+
+CREATE TABLE perf_table_25 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_24 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 25'
+);
+
+CREATE TABLE perf_table_26 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_25 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 26'
+);
+
+CREATE TABLE perf_table_27 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_26 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 27'
+);
+
+CREATE TABLE perf_table_28 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_27 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 28'
+);
+
+CREATE TABLE perf_table_29 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_28 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 29'
+);
+
+CREATE TABLE perf_table_30 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_29 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 30'
+);
+
+CREATE TABLE perf_table_31 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_30 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 31'
+);
+
+CREATE TABLE perf_table_32 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_31 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 32'
+);
+
+CREATE TABLE perf_table_33 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_32 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 33'
+);
+
+CREATE TABLE perf_table_34 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_33 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 34'
+);
+
+CREATE TABLE perf_table_35 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_34 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 35'
+);
+
+CREATE TABLE perf_table_36 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_35 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 36'
+);
+
+CREATE TABLE perf_table_37 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_36 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 37'
+);
+
+CREATE TABLE perf_table_38 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_37 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 38'
+);
+
+CREATE TABLE perf_table_39 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_38 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 39'
+);
+
+CREATE TABLE perf_table_40 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_39 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 40'
+);
+
+CREATE TABLE perf_table_41 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_40 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 41'
+);
+
+CREATE TABLE perf_table_42 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_41 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 42'
+);
+
+CREATE TABLE perf_table_43 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_42 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 43'
+);
+
+CREATE TABLE perf_table_44 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_43 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 44'
+);
+
+CREATE TABLE perf_table_45 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_44 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 45'
+);
+
+CREATE TABLE perf_table_46 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_45 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 46'
+);
+
+CREATE TABLE perf_table_47 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_46 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 47'
+);
+
+CREATE TABLE perf_table_48 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_47 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 48'
+);
+
+CREATE TABLE perf_table_49 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_48 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 49'
+);
+
+CREATE TABLE perf_table_50 (
+  id BIGSERIAL PRIMARY KEY,
+  previous_id BIGINT NOT NULL REFERENCES perf_table_49 (id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT 'table 50'
+);
