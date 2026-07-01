@@ -1,8 +1,11 @@
-const sampleSql = `CREATE TABLE app.users (
-  id BIGSERIAL PRIMARY KEY,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);`;
+import { SchemaDiagram } from "../features/diagram/components/schema-diagram";
+import { schemaToDiagramGraph } from "../features/diagram/graph/schema-to-diagram-graph";
+import {
+  hardCodedDiagramSchema,
+  hardCodedDiagramSql
+} from "../features/diagram/sample-schema";
+
+const diagramGraph = schemaToDiagramGraph(hardCodedDiagramSchema);
 
 export default function Home() {
   return (
@@ -39,7 +42,7 @@ export default function Home() {
           <textarea
             id="sql-source"
             spellCheck={false}
-            defaultValue={sampleSql}
+            defaultValue={hardCodedDiagramSql}
           />
         </section>
 
@@ -53,15 +56,9 @@ export default function Home() {
           </div>
           <div
             className="diagram-surface"
-            role="img"
-            aria-label="Empty Erdium diagram canvas"
+            aria-label="Erdium diagram canvas"
           >
-            <div className="table-preview" aria-hidden="true">
-              <div className="table-preview-title">app.users</div>
-              <div>id BIGSERIAL PK</div>
-              <div>email VARCHAR(255) UNIQUE</div>
-              <div>created_at TIMESTAMPTZ</div>
-            </div>
+            <SchemaDiagram graph={diagramGraph} />
           </div>
         </section>
       </div>
