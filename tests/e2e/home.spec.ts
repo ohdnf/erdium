@@ -315,3 +315,23 @@ test("exports the current diagram as PNG", async ({ page }) => {
   expect(pngStat.size).toBeGreaterThan(1000);
   await expect(page.getByText("Diagram PNG exported.")).toBeVisible();
 });
+
+test("renders the 50-table reference fixture", async ({ page }) => {
+  const referenceSql = await readFile(
+    "fixtures/postgres/performance-50-tables.sql",
+    "utf8"
+  );
+
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "SQL source" }).fill(referenceSql);
+  await page.getByRole("button", { name: "Parse" }).click();
+
+  await expect(page.getByText("Parsed 50 tables and 49 relationships.")).toBeVisible({
+    timeout: 10000
+  });
+  await expect(
+    page
+      .getByTestId("schema-diagram")
+      .getByRole("heading", { level: 3, name: "perf_table_50" })
+  ).toBeVisible({ timeout: 10000 });
+});
