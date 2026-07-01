@@ -474,31 +474,63 @@
 
 ### Completed Work
 
--
+- `ProjectDocumentV1` validation path를 재사용하는 JSON export/import helper 추가
+- `Export JSON` action으로 source SQL, layout, viewport, optional schema snapshot을 versioned project JSON으로 다운로드
+- `Import` action으로 JSON file을 읽고 format version/layout/dialect를 검증한 뒤 source SQL을 re-parse해 workspace state 복원
+- unsupported project document version과 malformed import JSON을 user-visible error로 표시
+- import가 현재 작업을 덮어쓰기 전에 browser confirm을 요구하도록 구현
+- `html-to-image`를 runtime dependency로 추가하고 PNG export adapter를 `src/adapters/export/png`에 격리
+- `Export PNG` action으로 diagram surface를 PNG data URL로 변환해 다운로드
+- PNG export에서 React Flow controls를 filter로 제외하고 editor controls가 포함되지 않도록 diagram surface만 캡처
+- JSON export/import, unsupported import, PNG download Playwright coverage 추가
 
 ### Concepts To Review
 
--
+- browser file download: Blob object URL과 data URL download link를 생성하고 정리하는 방식
+- file input import flow: hidden input을 button으로 트리거하고 File API `text()`로 JSON을 읽는 방식
+- import validation: localStorage와 JSON import가 같은 `parseProjectDocument` runtime validator를 공유하는 이유
+- source-of-truth policy: imported `sourceSql`을 다시 parse하고 `schemaSnapshot`은 authoritative data로 사용하지 않는 이유
+- PNG DOM export: `html-to-image`의 `toPng`와 `filter` option으로 diagram-only capture를 구성하는 방식
+- user confirmation: import가 현재 작업을 silently replace하지 않도록 guard하는 UX
 
 ### Code To Revisit
 
--
+- `src/features/project/serialization/project-export.ts`: JSON export/import helpers와 deterministic filename 확인
+- `src/adapters/export/browser-download.ts`: text/data URL download boundary 확인
+- `src/adapters/export/png/html-to-image-export.ts`: DOM-to-PNG adapter와 React Flow controls filter 확인
+- `src/features/editor/components/erd-workspace.tsx`: Import/Export JSON/PNG actions와 status handling 확인
+- `tests/e2e/home.spec.ts`: JSON download/import, unsupported import, PNG download assertions 확인
 
 ### Portfolio Notes
 
--
+- local-first MVP의 portable project export와 diagram image export를 UI로 완성
+- storage/import/export가 같은 versioned document contract를 공유해 future cloud persistence migration path 유지
+- imported JSON을 untrusted input으로 보고 runtime validation과 user-visible failure path를 제공
+- browser-only file workflows를 구현하면서 SQL을 서버나 외부 service로 보내지 않는 privacy boundary 유지
+- PNG export dependency를 adapter에 숨겨 future SVG/canvas export 교체 가능성 보존
 
 ### Interview Notes
 
--
+- “왜 JSON import에서 schema snapshot을 그대로 신뢰하지 않고 source SQL을 다시 parse하나요?”
+- “imported JSON을 어떤 기준으로 untrusted input으로 처리했나요?”
+- “현재 작업을 import로 덮어쓸 때 왜 confirm이 필요한가요?”
+- “PNG export가 editor controls를 포함하지 않도록 어떤 DOM boundary를 사용했나요?”
+- “DOM-to-image dependency를 adapter로 격리한 이유는 무엇인가요?”
+- “localStorage document와 exported JSON document를 같은 shape로 둔 장점은 무엇인가요?”
 
 ### Open Questions
 
--
+- PNG export에서 현재 viewport만 캡처하는 것이 충분한가, 전체 diagram bounds export도 필요한가?
+- large diagram PNG export 실패 시 retry/scale-down 옵션을 제공할 것인가?
+- imported source SQL parse 실패 시 schemaSnapshot fallback을 보여줄지, source authority policy를 유지할지?
+- JSON export filename에 project name이 생기면 어떻게 sanitize할 것인가?
 
 ### Next Milestone Preparation
 
--
+- README에 supported syntax, local-first privacy, setup commands, import/export limitations 문서화
+- release hardening에서 empty/corrupt storage, invalid import, PNG export failure copy를 최종 점검
+- Vercel deployment를 위한 build/runtime 환경과 CI status 확인
+- Phase 1 success criteria checklist를 PRD 기준으로 audit
 
 ## Milestone 10: Release Hardening
 

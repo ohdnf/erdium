@@ -1,3 +1,4 @@
+import { readFile, stat, writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 test("renders the Erdium workspace scaffold", async ({ page }) => {
@@ -177,4 +178,140 @@ test("restores SQL and moved table positions after refresh", async ({ page }) =>
       .getByTestId("schema-diagram")
       .getByRole("heading", { level: 3, name: "teams" })
   ).toBeVisible();
+});
+
+test("exports and imports project JSON", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  const exportDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export JSON" }).click();
+  const exportDownload = await exportDownloadPromise;
+
+  expect(exportDownload.suggestedFilename()).toMatch(
+    /^erdium-project-.+\.json$/
+  );
+
+  const exportedPath = await exportDownload.path();
+
+  if (!exportedPath) {
+    throw new Error("Expected exported project download to have a path.");
+  }
+
+  const exportedDocument = JSON.parse(await readFile(exportedPath, "utf8")) as {
+    formatVersion?: unknown;
+    sourceSql?: unknown;
+    layout?: unknown;
+  };
+
+  expect(exportedDocument.formatVersion).toBe(1);
+  expect(exportedDocument.sourceSql).toContain("CREATE TABLE organizations");
+  expect(exportedDocument.layout).toEqual(
+    expect.objectContaining({
+      positions: expect.any(Object),
+      viewport: expect.any(Object)
+    })
+  );
+  await expect(page.getByText("Project JSON exported.")).toBeVisible();
+
+  const unsupportedImportPath = testInfo.outputPath(
+    "unsupported-import-project.json"
+  );
+
+  await writeFile(
+    unsupportedImportPath,
+    JSON.stringify({
+      formatVersion: 2,
+      projectId: "local-default",
+      name: "Unsupported project",
+      dialect: "postgresql",
+      sourceSql: "CREATE TABLE unsupported (id BIGSERIAL PRIMARY KEY);",
+      layout: {
+        positions: {},
+        viewport: { x: 0, y: 0, zoom: 1 }
+      },
+      updatedAt: "2026-07-01T00:00:00.000Z"
+    })
+  );
+
+  page.once("dialog", async (dialog) => {
+    await dialog.accept();
+  });
+
+  const unsupportedFileChooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  const unsupportedFileChooser = await unsupportedFileChooserPromise;
+  await unsupportedFileChooser.setFiles(unsupportedImportPath);
+
+  await expect(
+    page.getByText("Unsupported project document version.")
+  ).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "SQL source" })).toHaveValue(
+    /CREATE TABLE organizations/
+  );
+
+  const importPath = testInfo.outputPath("import-project.json");
+
+  await writeFile(
+    importPath,
+    JSON.stringify(
+      {
+        formatVersion: 1,
+        projectId: "local-default",
+        name: "Imported project",
+        dialect: "postgresql",
+        sourceSql: `CREATE TABLE teams (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE
+);`,
+        layout: {
+          positions: {},
+          viewport: { x: 0, y: 0, zoom: 1 }
+        },
+        updatedAt: "2026-07-01T00:00:00.000Z"
+      },
+      null,
+      2
+    )
+  );
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("replace the current local work");
+    await dialog.accept();
+  });
+
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles(importPath);
+
+  await expect(page.getByText("Project JSON imported.")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "SQL source" })).toHaveValue(
+    /CREATE TABLE teams/
+  );
+  await expect(
+    page
+      .getByTestId("schema-diagram")
+      .getByRole("heading", { level: 3, name: "teams" })
+  ).toBeVisible();
+});
+
+test("exports the current diagram as PNG", async ({ page }) => {
+  await page.goto("/");
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export PNG" }).click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(/^erdium-diagram-.+\.png$/);
+
+  const pngPath = await download.path();
+
+  if (!pngPath) {
+    throw new Error("Expected exported PNG download to have a path.");
+  }
+
+  const pngStat = await stat(pngPath);
+
+  expect(pngStat.size).toBeGreaterThan(1000);
+  await expect(page.getByText("Diagram PNG exported.")).toBeVisible();
 });

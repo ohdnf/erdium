@@ -1,7 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ChangeEvent
+} from "react";
 import type { Diagnostic } from "../../../domain/schema";
+import {
+  downloadDataUrl,
+  downloadTextFile
+} from "../../../adapters/export/browser-download";
+import { exportDiagramElementToPng } from "../../../adapters/export/png/html-to-image-export";
 import { layoutDiagramGraphWithElk } from "../../../adapters/layout/elk/elk-layout-engine";
 import {
   loadLocalProject,
@@ -9,6 +21,11 @@ import {
   saveLocalProject
 } from "../../../adapters/persistence/local-storage/local-project-repository";
 import { createProjectDocument } from "../../project/serialization/project-document";
+import {
+  createDiagramPngFilename,
+  createProjectExport,
+  parseProjectImportText
+} from "../../project/serialization/project-export";
 import { parsePostgresSql } from "../../../adapters/parser/postgres";
 import { SchemaDiagram } from "../../diagram/components/schema-diagram";
 import { schemaToDiagramGraph } from "../../diagram/graph/schema-to-diagram-graph";
@@ -47,7 +64,18 @@ type PersistenceStatus =
   | "saved"
   | "error";
 
+type WorkspaceActionStatus =
+  | {
+      kind: "idle";
+    }
+  | {
+      kind: "success" | "error";
+      message: string;
+    };
+
 export function ErdWorkspace() {
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const diagramExportRef = useRef<HTMLDivElement>(null);
   const [state, dispatch] = useReducer(
     editorReducer,
     samplePostgresSql,
@@ -60,6 +88,9 @@ export function ErdWorkspace() {
     useState<PersistenceStatus>("loading");
   const [storageReady, setStorageReady] = useState(false);
   const [storageMessage, setStorageMessage] = useState<string | null>(null);
+  const [actionStatus, setActionStatus] = useState<WorkspaceActionStatus>({
+    kind: "idle"
+  });
   const graph = useMemo(
     () =>
       state.lastValidSchema
@@ -265,6 +296,7 @@ export function ErdWorkspace() {
       type: "projectRestored",
       state: createEditorStateFromParseResult(samplePostgresSql, parseResult)
     });
+    setActionStatus({ kind: "idle" });
 
     if (removeResult.ok) {
       setStorageMessage(null);
@@ -292,6 +324,119 @@ export function ErdWorkspace() {
       type: "sampleLoaded",
       sourceSql: samplePostgresSql
     });
+    setActionStatus({ kind: "idle" });
+  }
+
+  function exportProjectJson() {
+    try {
+      const exportedProject = createProjectExport({
+        sourceSql: state.sourceSql,
+        layout: state.layout,
+        schemaSnapshot: state.lastValidSchema
+      });
+
+      downloadTextFile({
+        filename: exportedProject.filename,
+        mimeType: exportedProject.mimeType,
+        contents: exportedProject.contents
+      });
+      setActionStatus({
+        kind: "success",
+        message: "Project JSON exported."
+      });
+    } catch {
+      setActionStatus({
+        kind: "error",
+        message: "Project JSON export failed."
+      });
+    }
+  }
+
+  async function exportDiagramPng() {
+    if (!diagramExportRef.current || !graph) {
+      setActionStatus({
+        kind: "error",
+        message: "No diagram is available to export."
+      });
+      return;
+    }
+
+    const exportResult = await exportDiagramElementToPng(
+      diagramExportRef.current
+    );
+
+    if (!exportResult.ok) {
+      setActionStatus({
+        kind: "error",
+        message: exportResult.message
+      });
+      return;
+    }
+
+    downloadDataUrl({
+      filename: createDiagramPngFilename(),
+      dataUrl: exportResult.dataUrl
+    });
+    setActionStatus({
+      kind: "success",
+      message: "Diagram PNG exported."
+    });
+  }
+
+  function openImportDialog() {
+    importInputRef.current?.click();
+  }
+
+  async function importProjectJson(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0] ?? null;
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (
+      state.sourceSql.trim().length > 0 &&
+      !window.confirm("Importing a project will replace the current local work.")
+    ) {
+      return;
+    }
+
+    try {
+      const importResult = parseProjectImportText(await file.text());
+
+      if (!importResult.ok) {
+        setActionStatus({
+          kind: "error",
+          message: importResult.message
+        });
+        return;
+      }
+
+      const parseResult = parsePostgresSql({
+        dialect: "postgresql",
+        sql: importResult.document.sourceSql
+      });
+
+      dispatch({
+        type: "projectRestored",
+        state: createEditorStateFromParseResult(
+          importResult.document.sourceSql,
+          parseResult,
+          importResult.document.layout
+        )
+      });
+      setStorageMessage(null);
+      setActionStatus({
+        kind: "success",
+        message: "Project JSON imported."
+      });
+    } catch {
+      setActionStatus({
+        kind: "error",
+        message: "Imported project file could not be read."
+      });
+    }
   }
 
   return (
@@ -324,12 +469,23 @@ export function ErdWorkspace() {
           <button type="button" onClick={resetLocalProject}>
             Reset local
           </button>
-          <button type="button" disabled>
+          <button type="button" onClick={openImportDialog}>
             Import
           </button>
-          <button type="button" disabled>
-            Export
+          <button type="button" onClick={exportProjectJson}>
+            Export JSON
           </button>
+          <button type="button" onClick={exportDiagramPng} disabled={!graph}>
+            Export PNG
+          </button>
+          <input
+            ref={importInputRef}
+            aria-label="Import project JSON"
+            className="visually-hidden"
+            type="file"
+            accept="application/json,.json"
+            onChange={importProjectJson}
+          />
         </nav>
       </header>
 
@@ -358,6 +514,7 @@ export function ErdWorkspace() {
             layoutStatus={layoutStatus}
             persistenceStatus={persistenceStatus}
             storageMessage={storageMessage}
+            actionStatus={actionStatus}
           />
           {state.diagnostics.length > 0 ? (
             <ParseDiagnostics diagnostics={state.diagnostics} />
@@ -373,6 +530,7 @@ export function ErdWorkspace() {
             <span>{diagramSummary(state)}</span>
           </div>
           <div
+            ref={diagramExportRef}
             className="diagram-surface"
             aria-label="Erdium diagram canvas"
           >
@@ -398,13 +556,16 @@ export function ErdWorkspace() {
 function ProjectStatus({
   layoutStatus,
   persistenceStatus,
-  storageMessage
+  storageMessage,
+  actionStatus
 }: {
   layoutStatus: LayoutStatus;
   persistenceStatus: PersistenceStatus;
   storageMessage: string | null;
+  actionStatus: WorkspaceActionStatus;
 }) {
   const errorMessage =
+    (actionStatus.kind === "error" ? actionStatus.message : null) ??
     storageMessage ??
     (layoutStatus.kind === "error" ? layoutStatus.message : null);
 
@@ -418,7 +579,9 @@ function ProjectStatus({
 
   return (
     <div className="project-status" role="status">
-      {projectStatusText(layoutStatus, persistenceStatus)}
+      {actionStatus.kind === "success"
+        ? actionStatus.message
+        : projectStatusText(layoutStatus, persistenceStatus)}
     </div>
   );
 }
