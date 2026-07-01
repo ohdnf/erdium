@@ -291,31 +291,58 @@
 
 ### Completed Work
 
--
+- `@xyflow/react`를 runtime dependency로 추가하고 root layout에서 React Flow stylesheet 로드
+- hard-coded `DatabaseSchema`를 3-table ERD로 렌더링하는 vertical slice 구현
+- `DatabaseSchema`를 vendor-neutral `DiagramGraph`로 변환하는 pure mapper 추가
+- React Flow node/edge 변환을 presentation adapter 경계 안으로 격리
+- custom table node에서 PK/FK/UQ/NN/DEF column metadata 표시
+- React Flow node state를 `useNodesState`로 관리해 in-memory table drag 지원
+- Playwright scaffold test를 실제 diagram table/edge 렌더링과 node drag 확인으로 확장
 
 ### Concepts To Review
 
--
+- vendor-neutral graph boundary: domain schema와 React Flow objects를 직접 결합하지 않는 이유
+- custom node type: table rendering을 React Flow adapter 안에서 구성하는 방식
+- controlled React Flow: nodes/edges를 명시적으로 전달하고 connection creation은 비활성화하는 방식
+- `onNodesChange`: controlled nodes에서 drag/selection changes를 local state에 반영하는 방식
+- manual positions: ELK 도입 전 deterministic positions로 vertical slice를 검증하는 기준
+- client boundary: `app/page.tsx`는 server entry로 유지하고 interactive diagram만 client component로 분리하는 방식
 
 ### Code To Revisit
 
--
+- `src/features/diagram/graph/schema-to-diagram-graph.ts`: schema-to-graph mapping과 FK edge semantics 확인
+- `src/features/diagram/react-flow/to-react-flow-elements.ts`: React Flow node/edge object 변환 확인
+- `src/features/diagram/components/schema-diagram.tsx`: React Flow boundary와 interaction props 확인
+- `src/features/diagram/components/table-node.tsx`: table/column metadata rendering 확인
+- `src/features/diagram/sample-schema.ts`: Milestone 6 hard-coded schema source 확인
 
 ### Portfolio Notes
 
--
+- parser output과 UI library 사이에 graph boundary를 둬 future layout/persistence 작업을 분리하기 쉬움
+- composite FK를 하나의 logical edge로 유지하는 모델을 UI layer까지 보존
+- React Flow 도입 후에도 domain model이 vendor type에 오염되지 않는 구조 유지
+- e2e에서 placeholder가 아니라 실제 ERD table과 relation label을 검증
 
 ### Interview Notes
 
--
+- “왜 `DatabaseSchema`를 바로 React Flow node로 변환하지 않고 `DiagramGraph`를 거치나요?”
+- “React Flow type과 domain type의 결합을 어떻게 막았나요?”
+- “ELK 없이 이번 milestone에서 node position을 어떻게 다뤘나요?”
+- “FK column metadata와 FK edge는 각각 어디에서 파생되나요?”
+- “Next.js App Router에서 client boundary를 어디에 두었나요?”
 
 ### Open Questions
 
--
+- React Flow edge label만으로 FK details가 충분한가, 별도 relation details panel이 필요한가?
+- Milestone 7에서 parser 결과와 hard-coded schema를 전환할 때 sample SQL과 visible diagram stale state를 어떻게 표현할 것인가?
+- Milestone 8에서 manual positions와 ELK layout result를 어떤 format으로 merge할 것인가?
 
 ### Next Milestone Preparation
 
--
+- editor SQL을 explicit Parse action으로 parser adapter에 연결하는 reducer/use-case 설계
+- parse success 시 `DatabaseSchema -> DiagramGraph -> React Flow` 경로를 재사용
+- parse error 시 현재 SQL text와 diagnostics는 갱신하되 last valid diagram graph를 유지하는 state transition 정의
+- sample SQL loading과 hard-coded schema 제거 또는 fallback 위치 결정
 
 ## Milestone 7: Editor-To-Diagram Integration
 
