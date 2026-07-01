@@ -113,7 +113,7 @@ export function ErdWorkspace() {
   }, []);
 
   useEffect(() => {
-    if (!graph || !needsAutoLayout) {
+    if (!storageReady || !graph || !needsAutoLayout) {
       return;
     }
 
@@ -153,7 +153,7 @@ export function ErdWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [graph, needsAutoLayout]);
+  }, [graph, needsAutoLayout, storageReady]);
 
   useEffect(() => {
     if (!storageReady) {
