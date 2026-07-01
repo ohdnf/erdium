@@ -348,31 +348,62 @@
 
 ### Completed Work
 
--
+- hard-coded `DatabaseSchema`를 제거하고 sample SQL을 parser adapter로 변환해 초기 diagram 생성
+- `ErdWorkspace` client component를 추가해 SQL source, parse status, diagnostics, last valid schema 상태 관리
+- explicit Parse action으로 `parsePostgresSql -> DatabaseSchema -> DiagramGraph -> React Flow` 경로 연결
+- parse 실패 시 current SQL과 diagnostics를 갱신하면서 last valid diagram을 유지하는 reducer transition 구현
+- SQL 변경 후 diagram stale 상태를 user-visible status로 표시
+- sample SQL loading action을 추가하고 기존 SQL 교체 전 confirm guard 적용
+- reducer unit test와 Playwright flow로 valid parse, invalid diagnostics, last-valid diagram 보존 검증
 
 ### Concepts To Review
 
--
+- feature-local reducer: UI state transition을 component 내부 조건문보다 명시적으로 관리하는 방식
+- last-valid-schema policy: invalid parse가 diagram state를 덮어쓰지 못하게 하는 이유
+- derived stale state: `sourceSql`과 `lastParsedSql`을 비교해 별도 boolean 저장을 피하는 방식
+- explicit parse action: parsing을 keystroke마다 실행하지 않고 사용자 명령에 연결하는 이유
+- client boundary: parser, editor state, React Flow를 browser-facing component 안에 묶고 route entry를 얇게 유지하는 방식
+- diagnostics UX: error code, message, line/column을 text로 노출해 색상에만 의존하지 않는 방식
 
 ### Code To Revisit
 
--
+- `src/features/editor/components/erd-workspace.tsx`: editor-to-parser-to-diagram orchestration 확인
+- `src/features/editor/state/editor-state.ts`: parse success/failure와 stale state transition 확인
+- `src/features/editor/state/editor-state.test.ts`: last valid schema 보존 regression test 확인
+- `src/features/editor/sample-sql.ts`: initial sample SQL source 확인
+- `src/app/page.tsx`: App Router route entry가 client workspace만 렌더링하는 구조 확인
+- `tests/e2e/home.spec.ts`: invalid SQL 후 previous diagram preservation flow 확인
 
 ### Portfolio Notes
 
--
+- Phase 1 privacy boundary를 유지하면서 SQL parsing을 browser-facing client workflow에 연결
+- hard-coded schema demo에서 실제 parser-backed vertical slice로 전환
+- parser error가 UI crash나 diagram loss로 이어지지 않도록 last valid state model을 분리
+- state reducer 단위 테스트와 E2E critical path를 함께 사용해 transformation과 user flow를 분리 검증
+- future persistence milestone에서 `sourceSql`, `lastValidSchema`, layout을 저장할 수 있는 state shape 기반 마련
 
 ### Interview Notes
 
--
+- “왜 invalid SQL이 들어와도 기존 diagram을 지우지 않나요?”
+- “`isDiagramStale`를 state에 저장하지 않고 derived value로 만든 이유는 무엇인가요?”
+- “parser adapter를 client component에서 호출해도 architecture boundary가 유지되는 이유는 무엇인가요?”
+- “controlled textarea를 사용하면서 native editing behavior를 어떻게 보존했나요?”
+- “unit test와 Playwright test가 각각 어떤 risk를 검증하나요?”
+- “sample SQL loading에서 기존 입력을 바로 덮어쓰지 않게 한 이유는 무엇인가요?”
 
 ### Open Questions
 
--
+- parse가 큰 SQL에서 blocking을 만들 경우 Web Worker 이전에 어떤 측정 기준을 둘 것인가?
+- diagnostics가 여러 개일 때 editor location highlight 없이 충분히 actionable한가?
+- sample loading 후 즉시 parse할지, explicit Parse requirement를 유지할지 product decision이 필요한가?
+- relation details는 edge label만으로 충분한가, selected FK details panel이 필요한가?
 
 ### Next Milestone Preparation
 
--
+- Milestone 8에서 `sourceSql`, diagram positions, viewport를 담을 `ProjectDocumentV1` shape와 validation boundary 설계
+- React Flow node drag 결과를 stable table ID keyed layout state로 추출하는 adapter 설계
+- ELK layout adapter가 반환한 positions와 manual positions를 merge하는 pure function 테스트 준비
+- local storage write debounce와 corrupt storage recovery path 정의
 
 ## Milestone 8: Layout And Persistence
 
